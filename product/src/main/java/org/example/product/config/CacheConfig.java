@@ -1,4 +1,4 @@
-package org.example.microservices.product.config;
+package org.example.product.config;
 
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;

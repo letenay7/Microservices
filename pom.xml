@@ -13,6 +13,7 @@
     <version>0.0.1-SNAPSHOT</version>
     <name>microservices</name>
     <description>microservices</description>
+    <packaging>pom</packaging>
     <url/>
     <licenses>
         <license/>
@@ -115,7 +116,6 @@
 
     </dependencies>
 
-
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -124,6 +124,12 @@
                 <version>2.0.5</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter</artifactId>
+                <version>3.3.2</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -172,5 +178,11 @@
             </plugin>
         </plugins>
     </build>
+
+    <modules>
+        <module>product</module>
+        <module>auth</module>
+
+    </modules>
 
 </project>

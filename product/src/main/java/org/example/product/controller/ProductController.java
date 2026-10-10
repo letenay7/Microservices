@@ -1,8 +1,8 @@
-package org.example.microservices.product.controller;
+package org.example.product.controller;
 
-import org.example.microservices.product.domain.Product;
-import org.example.microservices.product.dto.ProductRequest;
-import org.example.microservices.product.service.ProductService;
+import org.example.product.domain.Product;
+import org.example.product.dto.ProductRequest;
+import org.example.product.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

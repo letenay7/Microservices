@@ -1,4 +1,4 @@
-package org.example.microservices;
+package org.example.product;
 
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;

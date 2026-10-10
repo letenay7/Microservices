@@ -1,8 +1,8 @@
-package org.example.microservices.product.service;
+package org.example.product.service;
 
-import org.example.microservices.product.domain.Product;
-import org.example.microservices.product.dto.ProductRequest;
-import org.example.microservices.product.repository.ProductRepository;
+import org.example.product.domain.Product;
+import org.example.product.dto.ProductRequest;
+import org.example.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
@@ -18,19 +18,17 @@ public class ProductService {
     @Autowired
     private ProductRepository productRepository;
 
-
-
     @Cacheable(value = "products", key = "#id")
     public Product findById(Long id) {
         try {
             Thread.sleep(1000);
         }
-
         catch (InterruptedException ignored) {}
 
         return productRepository.findById(id).orElseThrow(()
                 -> new RuntimeException("no product with id " + id));
     }
+
     public Product saveProduct(ProductRequest request) {
         Product product =  Product.builder()
                 .name(request.name())
@@ -40,6 +38,7 @@ public class ProductService {
                 .build();
         return productRepository.save(product);
     }
+
     @CacheEvict(value = "products", key = "#id")
     public Product updateProduct(Long id, ProductRequest request) {
         Product toUpdate  = findById(id);

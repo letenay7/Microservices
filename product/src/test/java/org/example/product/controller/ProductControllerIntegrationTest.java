@@ -1,8 +1,8 @@
-package org.example.microservices.controller;
+package org.example.product.controller;
 
-import org.example.microservices.BaseIntegrationTest;
-import org.example.microservices.product.dto.ProductRequest;
-import org.example.microservices.product.repository.ProductRepository;
+import org.example.product.BaseIntegrationTest;
+import org.example.product.dto.ProductRequest;
+import org.example.product.repository.ProductRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
