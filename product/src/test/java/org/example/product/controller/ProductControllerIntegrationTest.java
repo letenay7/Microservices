@@ -16,7 +16,6 @@ import java.math.BigDecimal;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -60,9 +59,10 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
     @Test
     @DisplayName("GET /api/products - Should return all created products")
     void shouldGetAllProducts() throws Exception {
-        // Create 2 products
-        ProductRequest product1 = new ProductRequest("Keyboard", "Mechanical", new BigDecimal("89.99"), 20);
-        ProductRequest product2 = new ProductRequest("Mouse", "Wireless", new BigDecimal("49.99"), 15);
+        ProductRequest product1 = new ProductRequest(
+                "Keyboard", "Mechanical", new BigDecimal("89.99"), 20);
+        ProductRequest product2 = new ProductRequest(
+                "Mouse", "Wireless", new BigDecimal("49.99"), 15);
 
         mockMvc.perform(post("/api/products")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -74,7 +74,6 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                         .content(objectMapper.writeValueAsString(product2)))
                 .andExpect(status().isCreated());
 
-        // Fetch list
         mockMvc.perform(get("/api/products"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(2)))
@@ -85,7 +84,8 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
     @Test
     @DisplayName("GET /api/products/{id} - Should fetch single product (and cache it)")
     void shouldGetProductById() throws Exception {
-        ProductRequest request = new ProductRequest("4K Monitor", "32-inch UHD", new BigDecimal("450.00"), 8);
+        ProductRequest request = new ProductRequest(
+                "4K Monitor", "32-inch UHD", new BigDecimal("450.00"), 8);
 
         String response = mockMvc.perform(post("/api/products")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -93,15 +93,12 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        // Extract generated ID from JSON response
         Long productId = objectMapper.readTree(response).get("id").asLong();
 
-        // First call populates cache
         mockMvc.perform(get("/api/products/" + productId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("4K Monitor"));
 
-        // Second call reads directly from Redis
         mockMvc.perform(get("/api/products/" + productId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.name").value("4K Monitor"));
@@ -110,7 +107,8 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
     @Test
     @DisplayName("DELETE /api/products/{id} - Should delete product from DB and evict cache")
     void shouldDeleteProduct() throws Exception {
-        ProductRequest request = new ProductRequest("Temporary Item", "To be deleted", new BigDecimal("10.00"), 1);
+        ProductRequest request = new ProductRequest(
+                "Temporary Item", "To be deleted", new BigDecimal("10.00"), 1);
 
         String response = mockMvc.perform(post("/api/products")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -120,11 +118,9 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
 
         Long productId = objectMapper.readTree(response).get("id").asLong();
 
-        // Execute DELETE
         mockMvc.perform(delete("/api/products/" + productId))
                 .andExpect(status().isNoContent());
 
-        // Verify entity no longer exists in Postgres repository
         assertFalse(productRepository.existsById(productId));
     }
 }

@@ -16,7 +16,6 @@ class ProductApplicationTests {
 
     @Test
     void contextLoads() {
-        System.out.println("AAAAAAAAAAAAaaaaaa");
 
     }
 

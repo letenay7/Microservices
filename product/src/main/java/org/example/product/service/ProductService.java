@@ -20,17 +20,12 @@ public class ProductService {
 
     @Cacheable(value = "products", key = "#id")
     public Product findById(Long id) {
-        try {
-            Thread.sleep(1000);
-        }
-        catch (InterruptedException ignored) {}
-
         return productRepository.findById(id).orElseThrow(()
-                -> new RuntimeException("no product with id " + id));
+                -> new RuntimeException("No product found with id " + id));
     }
 
     public Product saveProduct(ProductRequest request) {
-        Product product =  Product.builder()
+        Product product = Product.builder()
                 .name(request.name())
                 .description(request.description())
                 .price(request.price())
@@ -41,7 +36,7 @@ public class ProductService {
 
     @CacheEvict(value = "products", key = "#id")
     public Product updateProduct(Long id, ProductRequest request) {
-        Product toUpdate  = findById(id);
+        Product toUpdate = findById(id);
         toUpdate.setName(request.name());
         toUpdate.setDescription(request.description());
         toUpdate.setPrice(request.price());
@@ -53,14 +48,12 @@ public class ProductService {
     public void deleteProduct(Long id) {
         Product toDelete = findById(id);
         if (toDelete == null) {
-            throw new RuntimeException("no product with id " + id);
+            throw new RuntimeException("No product found with id " + id);
         }
         productRepository.deleteById(id);
-
     }
 
     public List<Product> getAllProducts() {
         return productRepository.findAll();
     }
-
 }
