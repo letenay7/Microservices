@@ -15,4 +15,4 @@ spring:
       ddl-auto: update
     show-sql: true
 springdotenv:
-  filename: ../env.properties
+  filename: ../.env

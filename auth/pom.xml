@@ -99,7 +99,7 @@
                         <configuration>
                             <useDefaultValues>true</useDefaultValues>
                             <files>
-                                <file>../env.properties</file>
+                                <file>../.env</file>
                                 <file>${project.basedir}/src/main/resources/application.yml</file>
                             </files>
                             <quiet>false</quiet>

@@ -4,8 +4,8 @@ A modern, scalable microservices-base backend built with **Java 21**, **Spring B
 
 ## ️ Architecture & Services
 
-* **Product Service (`product-service`)**: Handles product catalog CRUD operations, backed by **PostgreSQL** for persistent storage and **Redis** for high-performance caching.
-* **Auth Service (`auth-service`)** *(TODO)*: Identity management, registration, and JWT token issuance.
+* **Product (`product`)**: Handles product catalog CRUD operations, backed by **PostgreSQL** for persistent storage and **Redis** for high-performance caching.
+* **Auth (`auth`)** *(In progress)*: Identity management, registration, and JWT token issuance.
 
 ---
 
@@ -31,4 +31,13 @@ Ensure you have the following installed locally:
 * [Docker Desktop] 
 
 ---
+
+Clone this repository
+```
+git clone https://github.com/letenay7/Microservices.git
+```
+Please refer to:
+* [Dummy init script](dummy_init.sql) for database setup
+* [Environment variables](dummy.env)  Required env variables
+* [Spring dotenv dependency by Paul Schwarz](https://github.com/paulschwarz/spring-dotenv) to configure Spring Boot env variables
 
