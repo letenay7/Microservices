@@ -10,7 +10,7 @@ name: Java CI with Maven Test
 
 on:
   push:
-    branches: [ "main", "auth-module" ]
+    branches: [ "auth-module" ]
   pull_request:
     branches: [ "main" ]
 
