@@ -1,8 +1,12 @@
 package org.example.auth.controller;
 
+import org.example.auth.dto.LoginRequestDTO;
 import org.example.auth.dto.RegisterRequestDTO;
 import org.example.auth.entity.User;
 import org.example.auth.repository.UserRepository;
+import org.example.auth.service.JwtService;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -10,11 +14,14 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 public class AuthController {
     private final UserRepository userRepository;
-    private  final PasswordEncoder passwordEncoder;
+    private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder,
+                          JwtService jwtService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     @GetMapping("/status")
@@ -31,5 +38,15 @@ public class AuthController {
         return "User " +
                 user.getUsername() +
                 " has been successfully registered";
+    }
+
+    @PostMapping("/login")
+    public String loginUser(@RequestBody LoginRequestDTO loginRequestDTO) {
+        User user = userRepository.findByUsername(loginRequestDTO.username())
+                .orElseThrow(() -> new UsernameNotFoundException(loginRequestDTO.username()));
+        if (!passwordEncoder.matches(loginRequestDTO.password(), user.getPassword())) {
+            throw new BadCredentialsException("Invalid username or password");
+        }
+        return jwtService.generateToken(user.getUsername());
     }
 }
