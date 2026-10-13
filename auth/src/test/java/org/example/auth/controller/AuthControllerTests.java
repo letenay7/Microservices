@@ -24,7 +24,7 @@ import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -144,5 +144,27 @@ class AuthControllerTests {
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").exists());
+    }
+
+    @Test
+    void shouldLogoutUserSuccessfully() throws Exception {
+        when(userRepository.findByUsername("martin")).thenReturn(Optional.of(mockUser));
+        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
+        when(jwtService.generateToken("martin")).thenReturn("mock-access-token");
+        when(refreshTokenService.createRefreshToken("martin")).thenReturn(mockRefreshToken);
+
+        when(refreshTokenRepository.findByToken("mock-refresh-token-uuid"))
+                .thenReturn(Optional.of(mockRefreshToken));
+        when(refreshTokenService.verifyExpiration(any(RefreshToken.class))).thenReturn(mockRefreshToken);
+        doNothing().when(refreshTokenRepository).deleteByToken("mock-refresh-token-uuid");
+
+        TokenRefreshRequestDTO refreshRequest = new TokenRefreshRequestDTO(
+                "mock-refresh-token-uuid");
+
+        mockMvc.perform(post("/api/auth/logout")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(refreshRequest)))
+                .andExpect(status().isOk());
+
     }
 }

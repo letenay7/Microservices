@@ -79,4 +79,16 @@ public class AuthController {
         }
         return ResponseEntity.notFound().build();
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<MessageResponseDTO> logoutCurrentToken(
+            @RequestBody TokenRefreshRequestDTO tokenRefreshRequestDTO) {
+        String incomingToken = tokenRefreshRequestDTO.refreshToken();
+        Optional<RefreshToken> token = refreshTokenRepository.findByToken(incomingToken);
+        if (token.isPresent()) {
+            refreshTokenRepository.deleteByToken(incomingToken);
+            return ResponseEntity.ok(new MessageResponseDTO(incomingToken));
+        }
+        return ResponseEntity.notFound().build();
+    }
 }

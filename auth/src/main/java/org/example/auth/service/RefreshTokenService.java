@@ -5,8 +5,10 @@ import org.example.auth.entity.User;
 import org.example.auth.repository.RefreshTokenRepository;
 import org.example.auth.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Optional;
@@ -34,8 +36,6 @@ public class RefreshTokenService {
         refreshToken.setUser(user);
         refreshToken.setToken(UUID.randomUUID().toString());
         refreshToken.setExpiryDate(Instant.now().plusMillis(expiryTime));
-
-        // Return the managed entity returned by the save method
         return refreshTokenRepository.save(refreshToken);
     }
 
@@ -45,5 +45,22 @@ public class RefreshTokenService {
             throw new RuntimeException("Refresh token expired");
         }
         return token;
+    }
+
+    @Transactional
+    public void deleteByToken(String token) {
+        refreshTokenRepository.deleteByToken(token);
+    }
+
+    @Transactional
+    public void deleteExpired() {
+        refreshTokenRepository.deleteByExpiryDateBefore(Instant.now());
+    }
+
+    @Scheduled(cron = "0 0 0 * * *")
+    @Transactional
+    public void clearExpiredTokens() {
+        refreshTokenRepository.deleteByExpiryDateBefore(Instant.now());
+
     }
 }
