@@ -25,19 +25,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(AuthController.class) // Tests *only* the AuthController web layer
 @AutoConfigureMockMvc(addFilters = false)
-class AuthControllerTest {
+class AuthControllerTests {
 
     @Autowired
-    private MockMvc mockMvc; // Simulates HTTP requests
+    private MockMvc mockMvc;
 
     @Autowired
-    private ObjectMapper objectMapper; // Converts Java objects to JSON strings
+    private ObjectMapper objectMapper;
 
     @MockitoBean
-    private UserRepository userRepository; // Fakes the database
+    private UserRepository userRepository;
 
     @MockitoBean
-    private PasswordEncoder passwordEncoder; // Fakes the password hasher
+    private PasswordEncoder passwordEncoder;
 
     @MockitoBean
     private JwtService jwtService;
@@ -55,7 +55,7 @@ class AuthControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andDo(print())
-                .andExpect(status().isOk()) // Expect HTTP 200 OK
+                .andExpect(status().isOk())
                 .andExpect(content().string(
                         "User " + request.username() + " has been successfully registered"));
     }
