@@ -5,6 +5,7 @@ import org.example.auth.entity.RefreshToken;
 import org.example.auth.entity.User;
 import org.example.auth.repository.RefreshTokenRepository;
 import org.example.auth.repository.UserRepository;
+import org.example.auth.security.AccessRole;
 import org.example.auth.service.JwtService;
 import org.example.auth.service.RefreshTokenService;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -63,6 +65,7 @@ class AuthControllerTests {
         mockUser.setId(1L);
         mockUser.setUsername("martin");
         mockUser.setPassword("hashed_password_123");
+        mockUser.setRoles(EnumSet.of(AccessRole.USER));
 
         mockRefreshToken = new RefreshToken();
         mockRefreshToken.setId(1L);
@@ -166,5 +169,24 @@ class AuthControllerTests {
                 .content(objectMapper.writeValueAsString(refreshRequest)))
                 .andExpect(status().isOk());
 
+    }
+
+    @Test
+    void shouldRejectNonAdminUser() throws Exception {
+        LoginRequestDTO request = new LoginRequestDTO("martin", "mySecurePassword123");
+
+        when(userRepository.findByUsername("martin")).thenReturn(Optional.of(mockUser));
+        when(passwordEncoder.matches("mySecurePassword123", "hashed_password_123")).thenReturn(true);
+        when(jwtService.generateToken("martin")).thenReturn("mock-access-token");
+
+        RefreshToken token = new RefreshToken();
+        token.setToken("mock-refresh-token-uuid");
+        when(refreshTokenService.createRefreshToken("martin")).thenReturn(token);
+
+        mockMvc.perform(post("/api/auth/admin")
+        .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isForbidden());
     }
 }

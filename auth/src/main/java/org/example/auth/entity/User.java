@@ -2,6 +2,9 @@ package org.example.auth.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.example.auth.security.AccessRole;
+
+import java.util.EnumSet;
 
 @Entity
 @Table(name = "users")
@@ -19,4 +22,7 @@ public class User {
 
     @Column(nullable = false)
     private String password;
+
+    @Column(nullable = false)
+    private EnumSet<AccessRole> roles;
 }
