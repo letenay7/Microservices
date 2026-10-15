@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -20,7 +19,7 @@ public class RefreshTokenService {
     private final UserRepository userRepository;
 
     @Value("${spring.application.token-expiration-duration}")
-    private long expiryTime;
+    private long tokenExpirationDuration;
 
     public RefreshTokenService(RefreshTokenRepository refreshTokenRepository,
                                UserRepository userRepository) {
@@ -35,7 +34,7 @@ public class RefreshTokenService {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUser(user);
         refreshToken.setToken(UUID.randomUUID().toString());
-        refreshToken.setExpiryDate(Instant.now().plusMillis(expiryTime));
+        refreshToken.setExpiryDate(Instant.now().plusMillis(tokenExpirationDuration));
         return refreshTokenRepository.save(refreshToken);
     }
 

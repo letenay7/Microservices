@@ -56,8 +56,14 @@ class AuthControllerTests {
     @MockitoBean
     private RefreshTokenRepository refreshTokenRepository;
 
+    private long tokenExpirationDuration = 604800000L;
+
     private User mockUser;
     private RefreshToken mockRefreshToken;
+
+    private User mockAdminUser;
+    private RefreshToken mockAdminRefreshToken;
+
 
     @BeforeEach
     void setUp() {
@@ -70,8 +76,20 @@ class AuthControllerTests {
         mockRefreshToken = new RefreshToken();
         mockRefreshToken.setId(1L);
         mockRefreshToken.setToken("mock-refresh-token-uuid");
-        mockRefreshToken.setExpiryDate(Instant.now().plusMillis(604800000));
+        mockRefreshToken.setExpiryDate(Instant.now().plusMillis(tokenExpirationDuration));
         mockRefreshToken.setUser(mockUser);
+
+        mockAdminUser = new User();
+        mockAdminUser.setId(2L);
+        mockAdminUser.setUsername("admin");
+        mockAdminUser.setPassword("StrongPassword123");
+        mockAdminUser.setRoles(EnumSet.of(AccessRole.ADMIN, AccessRole.USER));
+
+        mockAdminRefreshToken = new RefreshToken();
+        mockAdminRefreshToken.setId(2L);
+        mockAdminRefreshToken.setToken("mock-refresh-token-admin-uuid");
+        mockAdminRefreshToken.setExpiryDate(Instant.now().plusMillis(tokenExpirationDuration));
+        mockAdminRefreshToken.setUser(mockAdminUser);
     }
 
     @Test
@@ -176,7 +194,8 @@ class AuthControllerTests {
         LoginRequestDTO request = new LoginRequestDTO("martin", "mySecurePassword123");
 
         when(userRepository.findByUsername("martin")).thenReturn(Optional.of(mockUser));
-        when(passwordEncoder.matches("mySecurePassword123", "hashed_password_123")).thenReturn(true);
+        when(passwordEncoder.matches("mySecurePassword123", "hashed_password_123"))
+                .thenReturn(true);
         when(jwtService.generateToken("martin")).thenReturn("mock-access-token");
 
         RefreshToken token = new RefreshToken();
@@ -188,5 +207,22 @@ class AuthControllerTests {
                 .content(objectMapper.writeValueAsString(request)))
                 .andDo(print())
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void shouldAcceptAdminUser() throws Exception {
+        LoginRequestDTO request = new LoginRequestDTO("admin", "SupePassword123");
+        when(userRepository.findByUsername("admin")).thenReturn(Optional.of(mockAdminUser));
+        when(passwordEncoder.matches("SupePassword123", "StrongPassword123"))
+                .thenReturn(true);
+        when(jwtService.generateToken("admin")).thenReturn("mock-access-token");
+        RefreshToken token = new RefreshToken();
+        token.setToken("mock-refresh-token-uuid");
+        when(refreshTokenService.createRefreshToken("admin")).thenReturn(token);
+        mockMvc.perform(post("/api/auth/admin")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isOk());
     }
 }

@@ -121,7 +121,6 @@ public class AuthController {
                         .body(new ErrorResponseDTO(HttpStatus.FORBIDDEN.value(),
                                 "Access denied: Admin role required", System.currentTimeMillis()));
             }
-
             String accessToken = jwtService.generateToken(user.getUsername());
             RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getUsername());
             return ResponseEntity.ok(new AuthResponseDTO(accessToken, refreshToken.getToken()));
