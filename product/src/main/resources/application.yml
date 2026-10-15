@@ -27,3 +27,5 @@ spring:
 
   cache:
     type: redis
+springdotenv:
+  filename: ../.env
