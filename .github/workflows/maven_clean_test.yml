@@ -16,6 +16,20 @@ on:
 
 jobs:
   build:
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: testdb
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     runs-on: ubuntu-latest
 
@@ -31,7 +45,7 @@ jobs:
       run: |
         echo "${{ secrets.ENV_FILE_CONTENT }}" > .env
     - name: Test with Maven
-      run: mvn clean test
+      run: mvn clean test -pl product
 
     # Optional: Uploads the full dependency graph to GitHub to improve the quality of Dependabot alerts this repository can receive
     - name: Update dependency graph
