@@ -27,7 +27,10 @@ jobs:
         java-version: '21'
         distribution: 'temurin'
         cache: maven
-    - name: Build with Maven
+    - name: Create .env file
+      run: |
+        echo "${{ secrets.ENV_FILE_CONTENT }}" > .env
+    - name: Test with Maven
       run: mvn clean test
 
     # Optional: Uploads the full dependency graph to GitHub to improve the quality of Dependabot alerts this repository can receive
