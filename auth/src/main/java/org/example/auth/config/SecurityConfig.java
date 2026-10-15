@@ -28,9 +28,10 @@ public class SecurityConfig {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder()  {
+    public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) {
         http
@@ -40,7 +41,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole(AccessRole.ADMIN.getValue())
                         .requestMatchers("/api/user/**")
                         .hasAnyRole(AccessRole.USER.getValue(), AccessRole.ADMIN.getValue())
-                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/auth/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session

@@ -20,3 +20,4 @@ $$;
 -- Grant privileges
 GRANT ALL PRIVILEGES ON DATABASE your_value TO your_value;
 GRANT ALL PRIVILEGES ON DATABASE your_value TO your_value;
+ALTER DATABASE your_database_name OWNER TO your_db_user;
