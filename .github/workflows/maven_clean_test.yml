@@ -32,6 +32,8 @@ jobs:
           --health-retries 5
 
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
     - uses: actions/checkout@v4
