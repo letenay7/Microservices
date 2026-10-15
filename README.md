@@ -5,7 +5,7 @@ A modern, scalable microservices-base backend built with **Java 21**, **Spring B
 ## ️ Architecture & Services
 
 * **Product (`product`)**: Handles product catalog CRUD operations, backed by **PostgreSQL** for persistent storage and **Redis** for high-performance caching.
-* **Auth (`auth`)** *(In progress)*: Identity management, registration, and JWT token issuance.
+* **Auth (`auth`)**: Identity management, registration, and JWT token issuance.
 
 ---
 
