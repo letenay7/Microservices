@@ -1,10 +1,12 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/testdb
-    username: postgres
-    password: password
+    url: ${PRODUCT_TEST_URL}
+    username: ${PRODUCT_TEST_USERNAME}
+    password: ${PRODUCT_TEST_PASSWORD}
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
     show-sql: true
+springdotenv:
+  filename: ../.env

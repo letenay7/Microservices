@@ -1,0 +1,15 @@
+spring:
+  application:
+    token-expiration-duration: 604800000 # 7 days
+
+  datasource:
+    url: ${AUTH_TEST_URL}
+    username: ${AUTH_TEST_USERNAME}
+    password: ${AUTH_TEST_PASSWORD}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+springdotenv:
+  filename: ../.env
