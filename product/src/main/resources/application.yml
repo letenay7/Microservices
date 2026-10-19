@@ -6,9 +6,9 @@ spring:
     name: product
 
   datasource:
-    url: ${DB_URL}
-    username:  ${DB_USERNAME}
-    password:  ${DB_PASSWORD}
+    url: ${PRODUCT_DB_URL}
+    username: ${PRODUCT_DB_USERNAME}
+    password: ${PRODUCT_DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -23,7 +23,7 @@ spring:
   data:
     redis:
       host: ${REDIS_HOST}
-      port:  ${REDIS_PORT}
+      port: ${REDIS_PORT}
 
   cache:
     type: redis
