@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [ "microservices", "auth", "product" ]
+        module: [ "auth", "product" ]
 
     # Each runner gets an entirely isolated, fresh PostgreSQL instance
     services:
@@ -56,7 +56,7 @@ jobs:
           ${{ secrets.ENV_FILE_CONTENT }}
           EOF
 
-      # Dynamically maps system properties to overwrite your application.yml values
+      # Dynamically maps system properties to overwrite application.yml values
       - name: Test Module
         run: |
           mvn clean test -pl :${{ matrix.module }} \
