@@ -101,7 +101,7 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
 
         mockMvc.perform(get("/api/products/" + productId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("4K Monitor"));
+                .andExpect(jsonPath("$.description").value("32-inch UHD"));
     }
 
     @Test
@@ -122,5 +122,50 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(status().isNoContent());
 
         assertFalse(productRepository.existsById(productId));
+    }
+
+    @Test
+    @DisplayName("PUT should update product")
+    void shouldUpdateProduct() throws Exception {
+        ProductRequest request = new ProductRequest(
+                "Keyboard", "Mechanical", new BigDecimal("89.99"), 20);
+         String response = mockMvc.perform(post("/api/products")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+                 .andExpect(status().isCreated())
+                 .andReturn().getResponse().getContentAsString();
+         Long productId = objectMapper.readTree(response).get("id").asLong();
+
+         ProductRequest request2 = new ProductRequest(
+                 "Keyboard", "Mechanical", new BigDecimal("69.99"), 20);
+         mockMvc.perform(put("/api/products/" + productId)
+                 .contentType(MediaType.APPLICATION_JSON)
+                 .content(objectMapper.writeValueAsString(request2)))
+                 .andExpect(status().isOk())
+                 .andExpect(jsonPath("$.price").value(69.99));
+
+    }
+
+    @Test
+    @DisplayName("PUT Should update product quantity")
+    void shouldUpdateProductQuantity() throws Exception {
+        ProductRequest request = new ProductRequest(
+                "Mouse", "Mechanical", new BigDecimal("89.99"), 20);
+
+        String response = mockMvc.perform(post("/api/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Long productId = objectMapper.readTree(response).get("id").asLong();
+
+        ProductRequest request2 = new ProductRequest(
+                "Mouse", "Mechanical", new BigDecimal("89.99"), 5);
+
+        mockMvc.perform(put("/api/products/update-quantity/" + productId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request2)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.quantity").value(25));
     }
 }

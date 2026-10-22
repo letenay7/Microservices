@@ -47,13 +47,26 @@ public class ProductController {
     public ResponseEntity<Product> updateProductById(@PathVariable Long id,
                                                      @RequestBody ProductRequest productRequest) {
         try {
-            Product toUpdate = productService.findById(id);
-            productService.updateProduct(id, productRequest);
-            return ResponseEntity.ok(toUpdate);
-
+             Product updated = productService.updateProduct(id, productRequest);
+            return ResponseEntity.ok(updated);
         }
         catch (Exception e) {
             return ResponseEntity.noContent().build();
+        }
+    }
+
+    @PutMapping("update-quantity/{id}")
+    public ResponseEntity<Product> updateProductQuantity(@PathVariable Long id,
+                                                         @RequestBody ProductRequest productRequest) {
+        try {
+            Product toUpdate = productService.findById(id);
+            if (toUpdate != null) {
+                 Product updated = productService.updateProductQuantity(toUpdate, productRequest);
+                return ResponseEntity.ok(updated);
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
         }
     }
 }

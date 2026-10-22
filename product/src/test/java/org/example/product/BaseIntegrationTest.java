@@ -4,6 +4,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -11,6 +12,7 @@ import org.testcontainers.utility.DockerImageName;
 public abstract class BaseIntegrationTest {
 
     // 1. Define Postgres Container
+    @Container
     static final PostgreSQLContainer postgres =
             new PostgreSQLContainer("postgres:15-alpine")
             .withDatabaseName("test_db")
@@ -18,6 +20,7 @@ public abstract class BaseIntegrationTest {
             .withPassword("test");
 
     // 2. Define Redis Container using GenericContainer
+    @Container
     static final GenericContainer<?> redis =
             new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
             .withExposedPorts(6379);

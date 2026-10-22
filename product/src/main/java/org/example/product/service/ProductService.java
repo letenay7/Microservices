@@ -10,6 +10,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -20,8 +21,8 @@ public class ProductService {
 
     @Cacheable(value = "products", key = "#id")
     public Product findById(Long id) {
-        return productRepository.findById(id).orElseThrow(()
-                -> new RuntimeException("No product found with id " + id));
+        Optional<Product> product = productRepository.findById(id);
+        return product.orElse(null);
     }
 
     public Product saveProduct(ProductRequest request) {
@@ -42,6 +43,14 @@ public class ProductService {
         toUpdate.setPrice(request.price());
         toUpdate.setQuantity(request.quantity());
         return productRepository.save(toUpdate);
+    }
+
+    public Product updateProductQuantity(Product product, ProductRequest request) {
+        if (product.getName().equalsIgnoreCase(request.name())) {
+            product.setQuantity(product.getQuantity() + request.quantity());
+            return productRepository.save(product);
+        }
+        throw new RuntimeException("Product name does not match");
     }
 
     @CacheEvict(value = "products", key = "#id")
