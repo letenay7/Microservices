@@ -44,6 +44,7 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
          if (authorization == null || !authorization.startsWith("Bearer ")) {
              return onError(exchange, HttpStatus.UNAUTHORIZED);
          }
+
          String token = authorization.substring(7);
         try {
             SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
@@ -60,10 +61,10 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
 
             return chain.filter(exchange.mutate().request(modifiedRequest).build());
 
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             return onError(exchange, HttpStatus.UNAUTHORIZED);
         }
-
     }
 
     private Mono<Void> onError(ServerWebExchange exchange,
