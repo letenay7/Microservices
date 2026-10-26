@@ -32,6 +32,8 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 class GatewayRouteTests {
 
     static final String TEST_SECRET = generateSecret();
+    static final String WRONG_SECRET =
+            "wrong-secret-wrong-secret-wrong-secret-wrong-secret-wrong-secret-0987654321";
 
     private static String generateSecret() {
         byte[] bytes = new byte[64];
@@ -49,12 +51,10 @@ class GatewayRouteTests {
     @Autowired
     private WebTestClient webTestClient;
 
-
     @RegisterExtension
     static WireMockExtension productService = WireMockExtension.newInstance()
             .options(WireMockConfiguration.wireMockConfig().dynamicPort())
             .build();
-
 
     @RegisterExtension
     static WireMockExtension authService = WireMockExtension.newInstance()
@@ -62,7 +62,7 @@ class GatewayRouteTests {
             .build();
 
     @DynamicPropertySource
-    static void props(DynamicPropertyRegistry registry) {
+    static void properties(DynamicPropertyRegistry registry) {
         registry.add("PRODUCT_SERVICE_URL", productService::baseUrl);
         registry.add("AUTH_SERVICE_URL", authService::baseUrl);
         registry.add("jwt.secret", () -> TEST_SECRET);
@@ -70,13 +70,23 @@ class GatewayRouteTests {
         registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
     }
 
-
     private String generateValidToken() {
         SecretKey key = Keys.hmacShaKeyFor(TEST_SECRET.getBytes(StandardCharsets.UTF_8));
         return Jwts.builder()
                 .subject("testuser")
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + 3600000))
+                .signWith(key)
+                .compact();
+    }
+
+    private String createTokenWithExpiration(String secret, long expiresInMillis) {
+        SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        long now = System.currentTimeMillis();
+        return Jwts.builder()
+                .subject("testuser")
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + expiresInMillis))
                 .signWith(key)
                 .compact();
     }
@@ -160,6 +170,59 @@ class GatewayRouteTests {
                 .bodyValue("{}")
                 .exchange()
                 .expectStatus().isOk();
+
+        assertThat(productService.getAllServeEvents()).isEmpty();
+    }
+
+    @Test
+    void whenTokenSignedWithWrongSecret_thenReturnsUnauthorized() {
+        String token = createTokenWithExpiration(WRONG_SECRET, 3_600_000);
+
+        webTestClient.get()
+                .uri("/api/products/1")
+                .header("Authorization", "Bearer " + token)
+                .exchange()
+                .expectStatus().isUnauthorized();
+
+        assertThat(productService.getAllServeEvents()).isEmpty();
+    }
+
+    @Test
+    void whenTokenIsExpired_thenReturnsUnauthorized() {
+        String token = createTokenWithExpiration(TEST_SECRET, -60_000);   // expired a minute ago
+
+        webTestClient.get()
+                .uri("/api/products/1")
+                .header("Authorization", "Bearer " + token)
+                .exchange()
+                .expectStatus().isUnauthorized();
+
+        assertThat(productService.getAllServeEvents()).isEmpty();
+    }
+
+    @Test
+    void whenTokenIsMalformed_thenReturnsUnauthorized() {
+        webTestClient.get()
+                .uri("/api/products/1")
+                .header("Authorization", "Bearer not.a.jwt")
+                .exchange()
+                .expectStatus().isUnauthorized();
+
+        assertThat(productService.getAllServeEvents()).isEmpty();
+    }
+
+    @Test
+    void whenTokenIsTampered_thenReturnsUnauthorized() {
+        String token = generateValidToken();
+        // flip the last character of the signature
+        char last = token.charAt(token.length() - 1);
+        String tampered = token.substring(0, token.length() - 1) + (last == 'A' ? 'B' : 'A');
+
+        webTestClient.get()
+                .uri("/api/products/1")
+                .header("Authorization", "Bearer " + tampered)
+                .exchange()
+                .expectStatus().isUnauthorized();
 
         assertThat(productService.getAllServeEvents()).isEmpty();
     }
