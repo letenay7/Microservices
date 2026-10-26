@@ -10,7 +10,7 @@ name: Java CI with Maven
 
 on:
   push:
-    branches: [ "main", "api-gateway"]
+    branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
 
@@ -57,7 +57,7 @@ jobs:
           EOF
 
       # Dynamically maps system properties to overwrite application.yml values
-      - name: Test Module
+      - name: Test Modules
         run: |
           mvn clean test -pl :${{ matrix.module }} \
             -Dspring.datasource.url=jdbc:postgresql://localhost:5432/${{ matrix.module }}_db \
