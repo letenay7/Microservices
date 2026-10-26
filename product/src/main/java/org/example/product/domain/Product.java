@@ -29,4 +29,7 @@ public class Product implements Serializable {
 
     @Column
     private Integer quantity;
+
+    @Column
+    private String createdBy;
 }

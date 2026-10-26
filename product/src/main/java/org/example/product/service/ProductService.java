@@ -25,29 +25,32 @@ public class ProductService {
         return product.orElse(null);
     }
 
-    public Product saveProduct(ProductRequest request) {
+    public Product saveProduct(ProductRequest request,String createdBy) {
         Product product = Product.builder()
                 .name(request.name())
                 .description(request.description())
                 .price(request.price())
                 .quantity(request.quantity())
+                .createdBy(createdBy)
                 .build();
         return productRepository.save(product);
     }
 
     @CacheEvict(value = "products", key = "#id")
-    public Product updateProduct(Long id, ProductRequest request) {
+    public Product updateProduct(Long id, ProductRequest request, String createdBy) {
         Product toUpdate = findById(id);
         toUpdate.setName(request.name());
         toUpdate.setDescription(request.description());
         toUpdate.setPrice(request.price());
         toUpdate.setQuantity(request.quantity());
+        toUpdate.setCreatedBy(createdBy);
         return productRepository.save(toUpdate);
     }
 
-    public Product updateProductQuantity(Product product, ProductRequest request) {
+    public Product updateProductQuantity(Product product, ProductRequest request, String updatedBy) {
         if (product.getName().equalsIgnoreCase(request.name())) {
             product.setQuantity(product.getQuantity() + request.quantity());
+            product.setCreatedBy(updatedBy);
             return productRepository.save(product);
         }
         throw new RuntimeException("Product name does not match");

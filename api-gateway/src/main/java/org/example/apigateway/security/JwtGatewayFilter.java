@@ -31,38 +31,33 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
-         ServerHttpRequest request = exchange.getRequest();
-         String path = request.getURI().getPath();
-         if (path.startsWith("/api/auth/")) {
-             return chain.filter(exchange);
-         }
-         if (!request.getHeaders().containsHeader(HttpHeaders.AUTHORIZATION)) {
-             return onError(exchange, HttpStatus.UNAUTHORIZED);
-         }
+        ServerHttpRequest request = exchange.getRequest();
 
-         String authorization = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-         if (authorization == null || !authorization.startsWith("Bearer ")) {
-             return onError(exchange, HttpStatus.UNAUTHORIZED);
-         }
+        // Never trust a client-supplied identity header, on any route
+        ServerHttpRequest sanitized = request.mutate()
+                .headers(h -> h.remove("X-Auth-Username"))
+                .build();
+        ServerWebExchange cleanExchange = exchange.mutate().request(sanitized).build();
 
-         String token = authorization.substring(7);
+        if (request.getURI().getPath().startsWith("/api/auth/")) {
+            return chain.filter(cleanExchange);
+        }
+
+        String authorization = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        if (authorization == null || !authorization.startsWith("Bearer ")) {
+            return onError(exchange, HttpStatus.UNAUTHORIZED);
+        }
+
         try {
             SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
-            Claims claims = Jwts.parser()
-                    .verifyWith(key)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload();
+            Claims claims = Jwts.parser().verifyWith(key).build()
+                    .parseSignedClaims(authorization.substring(7)).getPayload();
 
-            // Optional: Pass extracted claims downstream via headers if needed
-            ServerHttpRequest modifiedRequest = exchange.getRequest().mutate()
-                    .header("X-Auth-Username", claims.getSubject())
+            ServerHttpRequest authed = sanitized.mutate()
+                    .headers(h -> h.set("X-Auth-Username", claims.getSubject()))
                     .build();
-
-            return chain.filter(exchange.mutate().request(modifiedRequest).build());
-
-        }
-        catch (Exception e) {
+            return chain.filter(exchange.mutate().request(authed).build());
+        } catch (Exception e) {
             return onError(exchange, HttpStatus.UNAUTHORIZED);
         }
     }

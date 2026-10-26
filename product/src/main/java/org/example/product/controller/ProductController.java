@@ -17,23 +17,30 @@ public class ProductController {
     private ProductService productService;
 
     @GetMapping
-    public ResponseEntity<List<Product>> getAllProducts() {
+    public ResponseEntity<List<Product>> getAllProducts(
+            @RequestHeader(value = "X-Auth-Username", defaultValue = "empty") String username) {
         return ResponseEntity.ok(productService.getAllProducts());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Product> getProductById(@PathVariable Long id) {
+    public ResponseEntity<Product> getProductById(@PathVariable Long id,
+                                                  @RequestHeader(
+                                                          value = "X-Auth-Username", defaultValue = "empty")
+                                                  String username) {
         return ResponseEntity.ok(productService.findById(id));
     }
 
     @PostMapping
-    public ResponseEntity<Product> createProduct(@RequestBody ProductRequest productRequest) {
+    public ResponseEntity<Product> createProduct(@RequestBody ProductRequest productRequest,
+                                                 @RequestHeader("X-Auth-Username") String username) {
          return ResponseEntity.status(HttpStatus.CREATED)
-                 .body(productService.saveProduct(productRequest));
+                 .body(productService.saveProduct(productRequest, username));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProductById(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteProductById(@PathVariable Long id,
+                                                  @RequestHeader(value = "X-Auth-Username",
+                                                          defaultValue = "empty" ) String username) {
         try {
             productService.deleteProduct(id);
             return ResponseEntity.noContent().build();
@@ -45,9 +52,10 @@ public class ProductController {
 
     @PutMapping("/{id}")
     public ResponseEntity<Product> updateProductById(@PathVariable Long id,
-                                                     @RequestBody ProductRequest productRequest) {
+                                                     @RequestBody ProductRequest productRequest,
+                                                     @RequestHeader("X-Auth-Username") String username) {
         try {
-             Product updated = productService.updateProduct(id, productRequest);
+             Product updated = productService.updateProduct(id, productRequest, username);
             return ResponseEntity.ok(updated);
         }
         catch (Exception e) {
@@ -57,11 +65,12 @@ public class ProductController {
 
     @PutMapping("update-quantity/{id}")
     public ResponseEntity<Product> updateProductQuantity(@PathVariable Long id,
-                                                         @RequestBody ProductRequest productRequest) {
+                                                         @RequestBody ProductRequest productRequest,
+                                                        @RequestHeader("X-Auth-Username") String username) {
         try {
             Product toUpdate = productService.findById(id);
             if (toUpdate != null) {
-                 Product updated = productService.updateProductQuantity(toUpdate, productRequest);
+                 Product updated = productService.updateProductQuantity(toUpdate, productRequest, username);
                 return ResponseEntity.ok(updated);
             }
             return ResponseEntity.notFound().build();
