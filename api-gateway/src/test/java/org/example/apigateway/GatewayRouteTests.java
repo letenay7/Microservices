@@ -31,9 +31,10 @@ import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 
 class GatewayRouteTests {
 
-    static final String TEST_SECRET = generateSecret();
-    static final String WRONG_SECRET =
+    private static final String TEST_SECRET = generateSecret();
+    private static final String WRONG_SECRET =
             "wrong-secret-wrong-secret-wrong-secret-wrong-secret-wrong-secret-0987654321";
+    private static final String TEST_USER = "testUser";
 
     private static String generateSecret() {
         byte[] bytes = new byte[64];
@@ -73,7 +74,7 @@ class GatewayRouteTests {
     private String generateValidToken() {
         SecretKey key = Keys.hmacShaKeyFor(TEST_SECRET.getBytes(StandardCharsets.UTF_8));
         return Jwts.builder()
-                .subject("testuser")
+                .subject(TEST_USER)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + 3600000))
                 .signWith(key)
@@ -84,7 +85,7 @@ class GatewayRouteTests {
         SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         long now = System.currentTimeMillis();
         return Jwts.builder()
-                .subject("testuser")
+                .subject(TEST_USER)
                 .issuedAt(new Date(now))
                 .expiration(new Date(now + expiresInMillis))
                 .signWith(key)

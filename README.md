@@ -1,11 +1,12 @@
-# E-Commerce Microservices Architecture
+# Microservices Architecture Backend
 
 A modern, scalable microservices-base backend built with **Java 21**, **Spring Boot 4**, and **Maven**.
 
-## ️ Architecture & Services
+## ️Services
 
 * **Product (`product`)**: Handles product catalog CRUD operations, backed by **PostgreSQL** for persistent storage and **Redis** for high-performance caching.
 * **Auth (`auth`)**: Identity management, registration, and JWT token issuance.
+* **Api gateway (`api-gateway`)**: Routing, Global JWT Filter, Rate limiter
 
 ---
 
