@@ -83,5 +83,6 @@
         <module>product</module>
         <module>auth</module>
         <module>api-gateway</module>
+        <module>order</module>
     </modules>
 </project>
