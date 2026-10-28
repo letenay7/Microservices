@@ -7,6 +7,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
@@ -24,5 +26,33 @@ public class OrderController {
 
         Order createdOrder = orderService.createOrder(request, username);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdOrder);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Order>> getAllOrders() {
+        List<Order> orders = orderService.getAllOrders();
+        return ResponseEntity.ok(orders);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Order>> getAllOrdersByUsername(
+            @RequestHeader("X-Auth-Username") String username) {
+        List<Order> orders = orderService.getAllOrdersByUsername(username);
+        return ResponseEntity.ok(orders);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<Order> updateOrder(@PathVariable Long id,
+                                             @RequestHeader("X-Auth-Username") String username,
+                                             @RequestBody OrderRequestDTO request) {
+        Order updatedOrder = orderService.updateOrder(id, username, request);
+        return ResponseEntity.ok(updatedOrder);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Order> deleteOrder(@PathVariable Long id,
+                                             @RequestHeader("X-Auth-Username") String username) {
+        orderService.deleteOrder(id, username);
+        return ResponseEntity.noContent().build();
     }
 }
