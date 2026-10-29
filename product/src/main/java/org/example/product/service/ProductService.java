@@ -2,6 +2,8 @@ package org.example.product.service;
 
 import org.example.product.domain.Product;
 import org.example.product.dto.ProductRequest;
+import org.example.product.exception.ProductConflictException;
+import org.example.product.exception.ProductServiceException;
 import org.example.product.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +24,8 @@ public class ProductService {
     @Cacheable(value = "products", key = "#id")
     public Product findById(Long id) {
         Optional<Product> product = productRepository.findById(id);
-        return product.orElse(null);
+        return product.orElseThrow(() ->
+                new ProductServiceException("Product  with id" + id +" not found"));
     }
 
     public Product saveProduct(ProductRequest request,String createdBy) {
@@ -53,14 +56,13 @@ public class ProductService {
             product.setCreatedBy(updatedBy);
             return productRepository.save(product);
         }
-        throw new RuntimeException("Product name does not match");
+        throw new ProductConflictException("Product names do not match");
     }
 
     @CacheEvict(value = "products", key = "#id")
     public void deleteProduct(Long id) {
-        Product toDelete = findById(id);
-        if (toDelete == null) {
-            throw new RuntimeException("No product found with id " + id);
+        if (!productRepository.existsById(id)) {
+            throw new ProductServiceException("Product with id" + id + " not found");
         }
         productRepository.deleteById(id);
     }

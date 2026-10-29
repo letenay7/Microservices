@@ -120,6 +120,27 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
     }
 
     @Test
+    @DisplayName("Get - wrong id")
+    void shouldNotGetProductById() throws Exception {
+        ProductRequest request = new ProductRequest(
+                "4K Monitor", "32-inch UHD", new BigDecimal("450.00"), 8);
+        String uuid = generateRandomUUID();
+
+        String response = mockMvc.perform(post("/api/products")
+                        .header("X-Auth-Username", uuid)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Long productId = objectMapper.readTree(response).get("id").asLong();
+
+        mockMvc.perform(get("/api/products/" + -productId))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+
+    }
+
+    @Test
     @DisplayName("DELETE /api/products/{id} - Should delete product from DB and evict cache")
     void shouldDeleteProduct() throws Exception {
         ProductRequest request = new ProductRequest(
@@ -141,7 +162,43 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
 
         assertFalse(productRepository.existsById(productId));
     }
+    @Test
+    @DisplayName("DELETE /api/products/{id} - Should return 404 when product to delete does not exist")
+    void shouldNotDeleteNonExistentProduct() throws Exception {
+        mockMvc.perform(delete("/api/products/" + -99900L))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
 
+    @Test
+    @DisplayName("PUT /api/products/{id} - Should return 404 when product to update does not exist")
+    void shouldNotUpdateNonExistentProduct() throws Exception {
+        ProductRequest request = new ProductRequest(
+                "Non-existent", "Ghost item", new BigDecimal("99.99"), 5);
+        String uuid = generateRandomUUID();
+
+        mockMvc.perform(put("/api/products/" + -999L)
+                        .header("X-Auth-Username", uuid)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    @DisplayName("PUT /api/products/update-quantity/{id} - Should return 404 when product for quantity update does not exist")
+    void shouldNotUpdateQuantityNonExistentProduct() throws Exception {
+        ProductRequest request = new ProductRequest(
+                "Non-existent", "Ghost item", new BigDecimal("99.99"), 10);
+        String uuid = generateRandomUUID();
+
+        mockMvc.perform(put("/api/products/update-quantity/" + -999L)
+                        .header("X-Auth-Username", uuid)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404));
+    }
     @Test
     @DisplayName("PUT should update product")
     void shouldUpdateProduct() throws Exception {
@@ -191,5 +248,30 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                         .content(objectMapper.writeValueAsString(request2)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.quantity").value(25));
+    }
+
+    @Test
+    @DisplayName("PUT /api/products/update-quantity/{id} - Should fail or handle mismatch when product names don't match")
+    void shouldNotUpdateQuantityWhenNamesDoNotMatch() throws Exception {
+        ProductRequest request = new ProductRequest(
+                "Original Mouse", "Mechanical", new BigDecimal("89.99"), 20);
+        String uuid = generateRandomUUID();
+
+        String response = mockMvc.perform(post("/api/products")
+                        .header("X-Auth-Username", uuid)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        Long productId = objectMapper.readTree(response).get("id").asLong();
+
+        ProductRequest request2 = new ProductRequest(
+                "Completely Different Name", "Mechanical", new BigDecimal("89.99"), 5);
+
+        mockMvc.perform(put("/api/products/update-quantity/" + productId)
+                        .header("X-Auth-Username", uuid)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request2)))
+                .andExpect(status().isConflict());
     }
 }
