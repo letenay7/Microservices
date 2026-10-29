@@ -2,6 +2,7 @@ package org.example.order.service;
 
 import org.example.order.client.ProductClient;
 import org.example.order.dto.OrderItemDTO;
+import org.example.order.dto.OrderProcessDTO;
 import org.example.order.dto.OrderRequestDTO;
 import org.example.order.dto.ProductDTO;
 import org.example.order.entity.Order;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,7 +27,13 @@ public class OrderService {
         this.orderRepository = orderRepository;
         this.productClient = productClient;
     }
-    public Order processOrderRequest(OrderRequestDTO orderRequestDTO, String username) {
+
+    public Order getOrderById(Long orderId)  {
+        return  orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found"));
+
+    }
+    public OrderProcessDTO processOrderRequest(OrderRequestDTO orderRequestDTO, String username) {
         List<OrderItem> orderItems = new ArrayList<>();
         BigDecimal totalPrice = new BigDecimal("0.00");
         for (OrderItemDTO item : orderRequestDTO.items()) {
@@ -43,22 +51,16 @@ public class OrderService {
             // totalPrice += productPrice * quantity
             totalPrice = totalPrice.add(productPrice.multiply(BigDecimal.valueOf(quantity)));
         }
-
-        Order order = new Order();
-        order.setUsername(username);
-        order.setItems(orderItems);
-        order.setTotalPrice(totalPrice);
-        return order;
+        return new OrderProcessDTO(orderItems, totalPrice);
     }
 
     public Order createOrder(OrderRequestDTO orderRequestDTO, String username) {
-        Order order = processOrderRequest(orderRequestDTO, username);
+        OrderProcessDTO processed = processOrderRequest(orderRequestDTO, username);
+        Order order = new Order();
+        order.setUsername(username);
+        order.setItems(processed.orderItems());
+        order.setTotalPrice(processed.totalPrice());
         return orderRepository.save(order);
-    }
-
-    public Order getOrderById(Long orderId) {
-        Optional<Order> order = orderRepository.findById(orderId);
-        return order.orElse(null);
     }
 
     public Order updateOrder(Long orderId, String username, OrderRequestDTO orderRequestDTO) {
@@ -69,8 +71,12 @@ public class OrderService {
         if (!toUpdate.getUsername().equals(username)) {
             throw new CannotModifyOrderException("Username doesn't match with requested username");
         }
-        Order updatedOrder = processOrderRequest(orderRequestDTO, username);
-        return orderRepository.save(updatedOrder);
+        OrderProcessDTO updatedOrder = processOrderRequest(orderRequestDTO, username);
+        toUpdate.getItems().clear();
+        toUpdate.getItems().addAll(updatedOrder.orderItems());
+        toUpdate.setTotalPrice(updatedOrder.totalPrice());
+        toUpdate.setUsername(username);
+        return orderRepository.save(toUpdate);
 
     }
     public void deleteOrder(Long orderId, String username) {

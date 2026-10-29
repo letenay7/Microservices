@@ -34,12 +34,6 @@ public class OrderController {
         return ResponseEntity.ok(orders);
     }
 
-    @GetMapping
-    public ResponseEntity<List<Order>> getAllOrdersByUsername(
-            @RequestHeader("X-Auth-Username") String username) {
-        List<Order> orders = orderService.getAllOrdersByUsername(username);
-        return ResponseEntity.ok(orders);
-    }
 
     @PutMapping("/{id}")
     public ResponseEntity<Order> updateOrder(@PathVariable Long id,
