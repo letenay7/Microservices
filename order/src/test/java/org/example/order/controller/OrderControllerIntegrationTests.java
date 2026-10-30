@@ -18,6 +18,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.UUID;
 
 // Explicit WireMock static imports to avoid wildcard conflicts
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
@@ -32,7 +33,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
-import static java.util.UUID.randomUUID;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureMockMvc
@@ -51,7 +51,7 @@ class OrderControllerIntegrationTests {
     private static String USER_ID;
 
     private String generateRandomUUID() {
-        return randomUUID().toString().replace("-", "");
+        return UUID.randomUUID().toString().replace("-", "");
     }
 
     @BeforeAll

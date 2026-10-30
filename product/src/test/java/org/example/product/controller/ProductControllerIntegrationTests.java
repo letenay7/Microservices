@@ -21,7 +21,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @AutoConfigureMockMvc
-class ProductControllerIntegrationTest extends BaseIntegrationTest {
+class ProductControllerIntegrationTests extends BaseIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -31,6 +31,7 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+    private static String USER_ID;
 
     private String generateRandomUUID() {
         return UUID.randomUUID().toString().replace("-", "");
@@ -39,6 +40,7 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
     @BeforeEach
     void setUp() {
         productRepository.deleteAll();
+        USER_ID = generateRandomUUID();
     }
 
     @Test
@@ -51,10 +53,8 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                 5
         );
 
-        String uuid = generateRandomUUID();
-
         mockMvc.perform(post("/api/products")
-                        .header("X-Auth-Username", uuid)
+                        .header("X-Auth-Username", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -62,7 +62,7 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                 .andExpect(jsonPath("$.name").value("Gaming Laptop"))
                 .andExpect(jsonPath("$.price").value(1299.99))
                 .andExpect(jsonPath("$.quantity").value(5)).
-                andExpect(jsonPath("$.createdBy").value(uuid));
+                andExpect(jsonPath("$.createdBy").value(USER_ID));
     }
 
     @Test
@@ -73,16 +73,16 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
         ProductRequest product2 = new ProductRequest(
                 "Mouse", "Wireless", new BigDecimal("49.99"), 15);
 
-        String uuid = generateRandomUUID();
+
 
         mockMvc.perform(post("/api/products")
-                        .header("X-Auth-Username", uuid)
+                        .header("X-Auth-Username",USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(product1)))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/products")
-                        .header("X-Auth-Username", uuid)
+                        .header("X-Auth-Username", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(product2)))
                 .andExpect(status().isCreated());
@@ -99,10 +99,9 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
     void shouldGetProductById() throws Exception {
         ProductRequest request = new ProductRequest(
                 "4K Monitor", "32-inch UHD", new BigDecimal("450.00"), 8);
-        String uuid = generateRandomUUID();
 
         String response = mockMvc.perform(post("/api/products")
-                        .header("X-Auth-Username", uuid)
+                        .header("X-Auth-Username", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -124,10 +123,9 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
     void shouldNotGetProductById() throws Exception {
         ProductRequest request = new ProductRequest(
                 "4K Monitor", "32-inch UHD", new BigDecimal("450.00"), 8);
-        String uuid = generateRandomUUID();
 
         String response = mockMvc.perform(post("/api/products")
-                        .header("X-Auth-Username", uuid)
+                        .header("X-Auth-Username", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -146,10 +144,8 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
         ProductRequest request = new ProductRequest(
                 "Temporary Item", "To be deleted", new BigDecimal("10.00"), 1);
 
-        String uuid = generateRandomUUID();
-
         String response = mockMvc.perform(post("/api/products")
-                        .header("X-Auth-Username", uuid)
+                        .header("X-Auth-Username", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -175,10 +171,9 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
     void shouldNotUpdateNonExistentProduct() throws Exception {
         ProductRequest request = new ProductRequest(
                 "Non-existent", "Ghost item", new BigDecimal("99.99"), 5);
-        String uuid = generateRandomUUID();
 
         mockMvc.perform(put("/api/products/" + -999L)
-                        .header("X-Auth-Username", uuid)
+                        .header("X-Auth-Username", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
@@ -190,10 +185,9 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
     void shouldNotUpdateQuantityNonExistentProduct() throws Exception {
         ProductRequest request = new ProductRequest(
                 "Non-existent", "Ghost item", new BigDecimal("99.99"), 10);
-        String uuid = generateRandomUUID();
 
         mockMvc.perform(put("/api/products/update-quantity/" + -999L)
-                        .header("X-Auth-Username", uuid)
+                        .header("X-Auth-Username", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound())
@@ -204,9 +198,8 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
     void shouldUpdateProduct() throws Exception {
         ProductRequest request = new ProductRequest(
                 "Keyboard", "Mechanical", new BigDecimal("89.99"), 20);
-        String uuid = generateRandomUUID();
         String response = mockMvc.perform(post("/api/products")
-                        .header("X-Auth-Username", uuid)
+                        .header("X-Auth-Username", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -216,12 +209,11 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
         ProductRequest request2 = new ProductRequest(
                 "Keyboard", "Mechanical", new BigDecimal("69.99"), 20);
         mockMvc.perform(put("/api/products/" + productId)
-                        .header("X-Auth-Username", uuid)
+                        .header("X-Auth-Username", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request2)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.price").value(69.99));
-
     }
 
     @Test
@@ -229,10 +221,9 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
     void shouldUpdateProductQuantity() throws Exception {
         ProductRequest request = new ProductRequest(
                 "Mouse", "Mechanical", new BigDecimal("89.99"), 20);
-        String uuid = generateRandomUUID();
 
         String response = mockMvc.perform(post("/api/products")
-                        .header("X-Auth-Username", uuid)
+                        .header("X-Auth-Username", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -243,7 +234,7 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                 "Mouse", "Mechanical", new BigDecimal("89.99"), 5);
 
         mockMvc.perform(put("/api/products/update-quantity/" + productId)
-                        .header("X-Auth-Username", uuid)
+                        .header("X-Auth-Username", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request2)))
                 .andExpect(status().isOk())
@@ -255,10 +246,9 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
     void shouldNotUpdateQuantityWhenNamesDoNotMatch() throws Exception {
         ProductRequest request = new ProductRequest(
                 "Original Mouse", "Mechanical", new BigDecimal("89.99"), 20);
-        String uuid = generateRandomUUID();
 
         String response = mockMvc.perform(post("/api/products")
-                        .header("X-Auth-Username", uuid)
+                        .header("X-Auth-Username", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -269,7 +259,7 @@ class ProductControllerIntegrationTest extends BaseIntegrationTest {
                 "Completely Different Name", "Mechanical", new BigDecimal("89.99"), 5);
 
         mockMvc.perform(put("/api/products/update-quantity/" + productId)
-                        .header("X-Auth-Username", uuid)
+                        .header("X-Auth-Username", USER_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request2)))
                 .andExpect(status().isConflict());
