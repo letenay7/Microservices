@@ -42,6 +42,7 @@ class GatewayRouteTests {
         new java.security.SecureRandom().nextBytes(bytes);
         return java.util.Base64.getEncoder().encodeToString(bytes);
     }
+
     static final GenericContainer<?> redis =
             new GenericContainer<>(DockerImageName.parse("redis:7"))
                     .withExposedPorts(6379);
@@ -49,6 +50,7 @@ class GatewayRouteTests {
     static {
         redis.start();
     }
+    static String USER_ID;
 
     @Autowired
     private WebTestClient webTestClient;
@@ -63,10 +65,16 @@ class GatewayRouteTests {
             .options(WireMockConfiguration.wireMockConfig().dynamicPort())
             .build();
 
+    @RegisterExtension
+    static WireMockExtension orderService = WireMockExtension.newInstance()
+            .options(WireMockConfiguration.wireMockConfig().dynamicPort())
+            .build();
+
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         registry.add("PRODUCT_SERVICE_URL", productService::baseUrl);
         registry.add("AUTH_SERVICE_URL", authService::baseUrl);
+        registry.add("ORDER_SERVICE_URL", orderService::baseUrl);
         registry.add("jwt.secret", () -> TEST_SECRET);
         registry.add("spring.data.redis.host", redis::getHost);
         registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
@@ -99,6 +107,7 @@ class GatewayRouteTests {
     @BeforeEach
     void resetRateLimiter() throws Exception {
         redis.execInContainer("redis-cli", "FLUSHALL");
+        USER_ID = generateRandomUUID();
     }
 
     @Test
@@ -117,7 +126,7 @@ class GatewayRouteTests {
                         .withHeader("Content-Type", "application/json")
                         .withBody("{\"id\":1,\"name\":\"Test Product\",\"price\":99.99}")));
 
-        String token = generateValidToken(generateRandomUUID());
+        String token = generateValidToken(USER_ID);
 
         webTestClient.get()
                 .uri("/api/products/1")
@@ -134,7 +143,7 @@ class GatewayRouteTests {
                         .withHeader("Content-Type", "application/json")
                         .withBody("{}")));
 
-        String token = generateValidToken(generateRandomUUID());
+        String token = generateValidToken(USER_ID);
 
         List<Integer> statuses = IntStream.range(0, 40)
                 .mapToObj(i -> webTestClient.get()
@@ -186,7 +195,7 @@ class GatewayRouteTests {
 
     @Test
     void whenTokenSignedWithWrongSecret_thenReturnsUnauthorized() {
-        String token = createTokenWithExpiration(generateRandomUUID(), WRONG_SECRET, 3_600_000);
+        String token = createTokenWithExpiration(USER_ID, WRONG_SECRET, 3_600_000);
 
         webTestClient.get()
                 .uri("/api/products/1")
@@ -199,7 +208,7 @@ class GatewayRouteTests {
 
     @Test
     void whenTokenIsExpired_thenReturnsUnauthorized() {
-        String token = createTokenWithExpiration(generateRandomUUID(), TEST_SECRET, -60_000);   // expired a minute ago
+        String token = createTokenWithExpiration(USER_ID, TEST_SECRET, -60_000);   // expired a minute ago
 
         webTestClient.get()
                 .uri("/api/products/1")
@@ -235,5 +244,92 @@ class GatewayRouteTests {
                 .expectStatus().isUnauthorized();
 
         assertThat(productService.getAllServeEvents()).isEmpty();
+    }
+
+    @Test
+    void whenCreateOrderWithoutToken_thenReturnsUnauthorized() {
+        webTestClient.post()
+                .uri("/api/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{\"items\": []}")
+                .exchange()
+                .expectStatus().isUnauthorized();
+
+        assertThat(orderService.getAllServeEvents()).isEmpty();
+    }
+
+    @Test
+    void whenValidTokenProvidedForCreateOrder_thenProxiesToOrderServiceWithUsernameHeader() {
+        // 1. Stub the downstream order-service response
+        orderService.stubFor(post(urlEqualTo("/api/orders"))
+                .withHeader("X-Auth-Username", equalTo(USER_ID))
+                .willReturn(aResponse()
+                        .withStatus(201)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":1,\"username\":" +
+                                USER_ID +
+                                ",\"totalPrice\":1200.00}")));
+
+        String token = generateValidToken(USER_ID);
+
+        // 2. Send request through API Gateway with JWT
+        webTestClient.post()
+                .uri("/api/orders")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{\"items\":[{\"productId\":1,\"quantity\":1}]}")
+                .exchange()
+                .expectStatus().isCreated()
+                .expectBody()
+                .jsonPath("$.username").isEqualTo(USER_ID)
+                .jsonPath("$.totalPrice").isEqualTo(1200.00);
+
+        // 3. Verify that the gateway forwarded the request and injected the X-Auth-Username header
+        orderService.verify(postRequestedFor(urlEqualTo("/api/orders"))
+                .withHeader("X-Auth-Username", equalTo(USER_ID)));
+    }
+
+    @Test
+    void whenGetOrdersCalledWithValidToken_thenProxiesAndPropagatesHeader() {
+        orderService.stubFor(get(urlEqualTo("/api/orders"))
+                .withHeader("X-Auth-Username", equalTo(USER_ID))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("[{\"id\":1,\"username\":" +
+                                USER_ID +
+                                ",\"totalPrice\":500.00}]")));
+
+        String token = generateValidToken(USER_ID);
+
+        webTestClient.get()
+                .uri("/api/orders")
+                .header("Authorization", "Bearer " + token)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$[0].username").isEqualTo(USER_ID);
+
+        orderService.verify(getRequestedFor(urlEqualTo("/api/orders"))
+                .withHeader("X-Auth-Username", equalTo(USER_ID)));
+    }
+
+    @Test
+    void whenDeleteOrderCalled_thenProxiesToServerAndPropagatesHeader() {
+        orderService.stubFor(delete(urlEqualTo("/api/orders/5"))
+                .withHeader("X-Auth-Username", equalTo(USER_ID))
+                .willReturn(aResponse()
+                        .withStatus(204)));
+
+        String token = generateValidToken(USER_ID);
+
+        webTestClient.delete()
+                .uri("/api/orders/5")
+                .header("Authorization", "Bearer " + token)
+                .exchange()
+                .expectStatus().isNoContent();
+
+        orderService.verify(deleteRequestedFor(urlEqualTo("/api/orders/5"))
+                .withHeader("X-Auth-Username", equalTo(USER_ID)));
     }
 }
