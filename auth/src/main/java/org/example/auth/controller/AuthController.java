@@ -3,7 +3,6 @@ package org.example.auth.controller;
 import org.example.auth.dto.*;
 import org.example.auth.entity.RefreshToken;
 import org.example.auth.entity.User;
-import org.example.auth.exception.GlobalExceptionHandler;
 import org.example.auth.exception.UserAlreadyExistsException;
 import org.example.auth.repository.RefreshTokenRepository;
 import org.example.auth.repository.UserRepository;
@@ -32,7 +31,7 @@ public class AuthController {
 
     public AuthController(UserRepository userRepository, PasswordEncoder passwordEncoder,
                           JwtService jwtService, RefreshTokenService refreshTokenService,
-                          RefreshTokenRepository refreshTokenRepository, GlobalExceptionHandler exceptionHandler) {
+                          RefreshTokenRepository refreshTokenRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
@@ -75,7 +74,7 @@ public class AuthController {
         throw new UsernameNotFoundException("User with username " + username + " not found");
     }
 
-    @PostMapping("/refresh_token")
+    @PostMapping("/refresh-token")
     public ResponseEntity<AuthResponseDTO> refreshCurrentToken(
             @RequestBody TokenRefreshRequestDTO tokenRefreshRequestDTO) {
         String incomingToken = tokenRefreshRequestDTO.refreshToken();
@@ -111,7 +110,6 @@ public class AuthController {
             if (!passwordEncoder.matches(loginRequestDTO.password(), user.getPassword())) {
                 throw new BadCredentialsException("Invalid username or password");
             }
-
             boolean isAdmin = user.getRoles().stream()
                     .anyMatch(role -> role.getValue().equals("ADMIN"));
             if (!isAdmin) {

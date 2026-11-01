@@ -6,7 +6,7 @@ import lombok.Getter;
 public enum AccessRole {
     ADMIN("ADMIN"),
     USER("USER");
-    private String value;
+    private final String value;
     AccessRole(String value) {
         this.value = value;
     }

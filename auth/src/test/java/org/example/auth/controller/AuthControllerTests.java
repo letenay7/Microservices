@@ -159,7 +159,7 @@ class AuthControllerTests {
 
         TokenRefreshRequestDTO refreshRequest = new TokenRefreshRequestDTO(authResponse.refreshToken());
 
-        mockMvc.perform(post("/api/auth/refresh_token")
+        mockMvc.perform(post("/api/auth/refresh-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(refreshRequest)))
                 .andDo(print())
