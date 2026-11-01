@@ -1,7 +1,7 @@
 package org.example.product.controller;
 
-import org.example.product.domain.Product;
-import org.example.product.dto.ProductRequest;
+import org.example.product.entity.Product;
+import org.example.product.dto.ProductRequestDTO;
 import org.example.product.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -31,10 +31,10 @@ public class ProductController {
     }
 
     @PostMapping
-    public ResponseEntity<Product> createProduct(@RequestBody ProductRequest productRequest,
+    public ResponseEntity<Product> createProduct(@RequestBody ProductRequestDTO productRequestDTO,
                                                  @RequestHeader("X-Auth-Username") String username) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(productService.saveProduct(productRequest, username));
+                .body(productService.saveProduct(productRequestDTO, username));
     }
 
     @DeleteMapping("/{id}")
@@ -47,18 +47,18 @@ public class ProductController {
 
     @PutMapping("/{id}")
     public ResponseEntity<Product> updateProductById(@PathVariable Long id,
-                                                     @RequestBody ProductRequest productRequest,
+                                                     @RequestBody ProductRequestDTO productRequestDTO,
                                                      @RequestHeader("X-Auth-Username") String username) {
-       Product updatedProduct = productService.updateProduct(id, productRequest, username);
+       Product updatedProduct = productService.updateProduct(id, productRequestDTO, username);
        return ResponseEntity.ok(updatedProduct);
     }
 
     @PutMapping("update-quantity/{id}")
     public ResponseEntity<Product> updateProductQuantity(@PathVariable Long id,
-                                                         @RequestBody ProductRequest productRequest,
+                                                         @RequestBody ProductRequestDTO productRequestDTO,
                                                          @RequestHeader("X-Auth-Username") String username) {
         Product toUpdate = productService.findById(id);
-        Product updated = productService.updateProductQuantity(toUpdate, productRequest, username);
+        Product updated = productService.updateProductQuantity(toUpdate, productRequestDTO, username);
         return ResponseEntity.ok(updated);
     }
 }

@@ -1,7 +1,6 @@
 package org.example.product.service;
-
-import org.example.product.domain.Product;
-import org.example.product.dto.ProductRequest;
+import org.example.product.entity.Product;
+import org.example.product.dto.ProductRequestDTO;
 import org.example.product.exception.ProductConflictException;
 import org.example.product.exception.ProductServiceException;
 import org.example.product.repository.ProductRepository;
@@ -28,7 +27,7 @@ public class ProductService {
                 new ProductServiceException("Product  with id" + id +" not found"));
     }
 
-    public Product saveProduct(ProductRequest request,String createdBy) {
+    public Product saveProduct(ProductRequestDTO request, String createdBy) {
         Product product = Product.builder()
                 .name(request.name())
                 .description(request.description())
@@ -40,7 +39,7 @@ public class ProductService {
     }
 
     @CacheEvict(value = "products", key = "#id")
-    public Product updateProduct(Long id, ProductRequest request, String createdBy) {
+    public Product updateProduct(Long id, ProductRequestDTO request, String createdBy) {
         Product toUpdate = findById(id);
         toUpdate.setName(request.name());
         toUpdate.setDescription(request.description());
@@ -50,7 +49,7 @@ public class ProductService {
         return productRepository.save(toUpdate);
     }
 
-    public Product updateProductQuantity(Product product, ProductRequest request, String updatedBy) {
+    public Product updateProductQuantity(Product product, ProductRequestDTO request, String updatedBy) {
         if (product.getName().equalsIgnoreCase(request.name())) {
             product.setQuantity(product.getQuantity() + request.quantity());
             product.setCreatedBy(updatedBy);

@@ -1,4 +1,4 @@
-package org.example.product.domain;
+package org.example.product.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
