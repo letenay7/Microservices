@@ -153,7 +153,7 @@ class OrderControllerIntegrationTests {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        Long orderId = objectMapper.readTree(responseString).get("id").asLong();
+        Long orderId = objectMapper.readTree(responseString).get("orderId").asLong();
 
         // 3. Stub the Product Service response for the update (if pricing/details are fetched again)
         wireMockServer.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlEqualTo("/api/products/1"))
@@ -174,7 +174,7 @@ class OrderControllerIntegrationTests {
                         .content(objectMapper.writeValueAsString(updateRequest)))
                 // 6. Assert response reflects updated quantity and calculated price
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(orderId))
+                .andExpect(jsonPath("$.orderId").value(orderId))
                 .andExpect(jsonPath("$.totalPrice").value(3600.00)) // 1200.00 * 3
                 .andExpect(jsonPath("$.items[0].quantity").value(3));
     }
@@ -201,13 +201,12 @@ class OrderControllerIntegrationTests {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
 
-        Long orderId = objectMapper.readTree(responseString).get("id").asLong();
+        Long orderId = objectMapper.readTree(responseString).get("orderId").asLong();
 
 
         // 3. Perform DELETE request
         mockMvc.perform(delete("/api/orders/{id}", orderId)
                         .header("X-Auth-Username", USER_ID))
-                // 4. Assert successful deletion (change to isOk() if your controller returns 200 instead of 204)
                 .andExpect(status().isNoContent());
 
         // 5. Verify the order is gone by fetching user orders and confirming empty state
@@ -215,5 +214,54 @@ class OrderControllerIntegrationTests {
                         .header("X-Auth-Username", USER_ID))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(0)));
+    }
+
+    @Test
+    void getOrdersByUsername() throws Exception {
+        wireMockServer.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlEqualTo("/api/products/1"))
+                .withHeader("X-Auth-Username", equalTo(USER_ID))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+                        .withBody("{\"productId\": 1, \"name\": \"Laptop\", \"price\": 1200.00}")));
+
+        OrderItemDTO itemRequest = new OrderItemDTO(1L, 2);
+        OrderRequestDTO orderRequest = new OrderRequestDTO(List.of(itemRequest));
+
+        mockMvc.perform(post("/api/orders")
+                        .header("X-Auth-Username", USER_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderRequest)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/orders")
+                        .param("username", USER_ID)
+                        .header("X-Auth-Username", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)));
+    }
+
+    @Test
+    void headerAndParamUsernamesDontMatch() throws Exception {
+        wireMockServer.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlEqualTo("/api/products/1"))
+                .withHeader("X-Auth-Username", equalTo(USER_ID))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+                        .withBody("{\"productId\": 1, \"name\": \"Laptop\", \"price\": 1200.00}")));
+
+        OrderItemDTO itemRequest = new OrderItemDTO(1L, 2);
+        OrderRequestDTO orderRequest = new OrderRequestDTO(List.of(itemRequest));
+
+        mockMvc.perform(post("/api/orders")
+                        .header("X-Auth-Username", USER_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(orderRequest)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/orders")
+                        .param("username", "wrongParam")
+                        .header("X-Auth-Username", USER_ID))
+                .andExpect(status().isConflict());
     }
 }

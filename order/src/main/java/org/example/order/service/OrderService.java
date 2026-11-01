@@ -14,9 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 public class OrderService {
@@ -77,8 +75,8 @@ public class OrderService {
         toUpdate.setTotalPrice(updatedOrder.totalPrice());
         toUpdate.setUsername(username);
         return orderRepository.save(toUpdate);
-
     }
+
     public void deleteOrder(Long orderId, String username) {
         Order toDelete = getOrderById(orderId);
         if (toDelete == null) {
