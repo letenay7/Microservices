@@ -38,7 +38,7 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .anonymous(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/admin/**").hasRole(AccessRole.ADMIN.getValue())
+                        .requestMatchers("/api/auth/admin/**").hasAnyAuthority(AccessRole.ADMIN.getValue())
                         .requestMatchers("/api/user/**")
                         .hasAnyRole(AccessRole.USER.getValue(), AccessRole.ADMIN.getValue())
                         .requestMatchers("/api/auth/**",
@@ -53,7 +53,6 @@ public class SecurityConfig {
                 .exceptionHandling(ex ->
                         ex.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-
         return http.build();
     }
 
