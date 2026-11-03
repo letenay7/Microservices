@@ -2,7 +2,9 @@ package org.example.auth.service;
 
 import org.example.auth.dto.LoginRequestDTO;
 import org.example.auth.dto.RegisterRequestDTO;
+import org.example.auth.dto.ResetPasswordDTO;
 import org.example.auth.entity.User;
+import org.example.auth.exception.PasswordModificationException;
 import org.example.auth.exception.UserAlreadyExistsException;
 import org.example.auth.repository.UserRepository;
 import org.example.auth.security.AccessRole;
@@ -36,37 +38,48 @@ public class UserService {
 
         // set default role AccessRole.USER
         user.setRoles(EnumSet.of(AccessRole.USER));
-         return userRepository.save(user);
+        return userRepository.save(user);
+    }
+
+    private User getUserByUsername(String username) {
+        Optional<User> userOptional = userRepository.findByUsername(username);
+        if (userOptional.isPresent()) {
+            return userOptional.get();
+        }
+        throw new UsernameNotFoundException("User with username " + username + " not found");
     }
 
     public User login(LoginRequestDTO loginRequestDTO) {
         String username = loginRequestDTO.username();
-        Optional<User> userOptional = userRepository.findByUsername(username);
-        if (userOptional.isPresent()) {
-            User user = userOptional.get();
-            if (!passwordEncoder.matches(loginRequestDTO.password(), user.getPassword())) {
-                throw new BadCredentialsException("Invalid username or password");
-            }
-            return user;
+        User user = getUserByUsername(username);
+        if (!passwordEncoder.matches(loginRequestDTO.password(), user.getPassword())) {
+            throw new BadCredentialsException("Invalid username or password");
         }
-        throw new BadCredentialsException("Invalid username or password");
+        return user;
+    }
+
+    private boolean isAdmin(User user) {
+        return user.getRoles().stream()
+                .anyMatch(role -> role.getValue().equals("ADMIN"));
     }
 
     public User loginAdmin(LoginRequestDTO loginRequestDTO) {
-        Optional<User> userOptional = userRepository.findByUsername(loginRequestDTO.username());
-        if (userOptional.isPresent()) {
-            User user = userOptional.get();
-            if (!passwordEncoder.matches(loginRequestDTO.password(), user.getPassword())) {
-                throw new BadCredentialsException("Invalid username or password");
-            }
-            boolean isAdmin = user.getRoles().stream()
-                    .anyMatch(role -> role.getValue().equals("ADMIN"));
-            if (!isAdmin) {
-                throw new AccessDeniedException("Access Denied");
-            }
-            return user;
+        User user = getUserByUsername(loginRequestDTO.username());
+        if (!passwordEncoder.matches(loginRequestDTO.password(), user.getPassword())) {
+            throw new BadCredentialsException("Invalid username or password");
         }
-        throw new UsernameNotFoundException(
-                "User with username " + loginRequestDTO.username() + " not found");
+        if (!isAdmin(user)) {
+            throw new AccessDeniedException("Access Denied");
+        }
+        return user;
+    }
+
+    public User resetUserPassword(ResetPasswordDTO resetPasswordDTO) {
+        User user = getUserByUsername(resetPasswordDTO.username());
+        if (passwordEncoder.matches(resetPasswordDTO.newPassword(),  user.getPassword())) {
+            throw new PasswordModificationException("New password cannot be the same as the old password");
+        }
+        user.setPassword(passwordEncoder.encode(resetPasswordDTO.newPassword()));
+        return userRepository.save(user);
     }
 }

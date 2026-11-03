@@ -2,7 +2,9 @@ package org.example.auth.service;
 
 import org.example.auth.dto.LoginRequestDTO;
 import org.example.auth.dto.RegisterRequestDTO;
+import org.example.auth.dto.ResetPasswordDTO;
 import org.example.auth.entity.User;
+import org.example.auth.exception.PasswordModificationException;
 import org.example.auth.exception.UserAlreadyExistsException;
 import org.example.auth.repository.UserRepository;
 import org.example.auth.security.AccessRole;
@@ -71,8 +73,10 @@ class UserServiceTests {
         RegisterRequestDTO request = new RegisterRequestDTO("martin", "mySecurePassword123");
 
         when(userRepository.existsByUsername("martin")).thenReturn(false);
-        when(passwordEncoder.encode("mySecurePassword123")).thenReturn("hashed_password_123");
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(passwordEncoder.encode("mySecurePassword123"))
+                .thenReturn("hashed_password_123");
+        when(userRepository.save(any(User.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         User result = userService.createUser(request);
 
@@ -105,7 +109,8 @@ class UserServiceTests {
         LoginRequestDTO request = new LoginRequestDTO("martin", "mySecurePassword123");
 
         when(userRepository.findByUsername("martin")).thenReturn(Optional.of(regularUser));
-        when(passwordEncoder.matches("mySecurePassword123", "hashed_password_123")).thenReturn(true);
+        when(passwordEncoder.matches("mySecurePassword123", "hashed_password_123"))
+                .thenReturn(true);
 
         assertSame(regularUser, userService.login(request));
     }
@@ -115,7 +120,8 @@ class UserServiceTests {
         LoginRequestDTO request = new LoginRequestDTO("martin", "wrong-password");
 
         when(userRepository.findByUsername("martin")).thenReturn(Optional.of(regularUser));
-        when(passwordEncoder.matches("wrong-password", "hashed_password_123")).thenReturn(false);
+        when(passwordEncoder.matches("wrong-password", "hashed_password_123"))
+                .thenReturn(false);
 
         assertThrows(BadCredentialsException.class, () -> userService.login(request));
     }
@@ -126,7 +132,7 @@ class UserServiceTests {
 
         when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
 
-        assertThrows(BadCredentialsException.class, () -> userService.login(request));
+        assertThrows(UsernameNotFoundException.class, () -> userService.login(request));
         verifyNoInteractions(passwordEncoder);
     }
 
@@ -137,7 +143,8 @@ class UserServiceTests {
         LoginRequestDTO request = new LoginRequestDTO("admin", "StrongPassword123");
 
         when(userRepository.findByUsername("admin")).thenReturn(Optional.of(adminUser));
-        when(passwordEncoder.matches("StrongPassword123", "hashed_admin_password")).thenReturn(true);
+        when(passwordEncoder.matches("StrongPassword123", "hashed_admin_password"))
+                .thenReturn(true);
 
         assertSame(adminUser, userService.loginAdmin(request));
     }
@@ -183,4 +190,53 @@ class UserServiceTests {
         assertThrows(UsernameNotFoundException.class, () -> userService.loginAdmin(request));
         verifyNoInteractions(passwordEncoder);
     }
+
+    // ---------- password update ----------
+
+    @Test
+    void resetUserPassword_shouldHashAndSaveNewPassword() {
+        ResetPasswordDTO request = new ResetPasswordDTO("martin", "newPassword456");
+
+        when(userRepository.findByUsername("martin")).thenReturn(Optional.of(regularUser));
+        when(passwordEncoder.matches("newPassword456", "hashed_password_123")).thenReturn(false);
+        when(passwordEncoder.encode("newPassword456")).thenReturn("hashed_new_password");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User result = userService.resetUserPassword(request);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        assertEquals("hashed_new_password", captor.getValue().getPassword(),
+                "the new password must be stored hashed, not raw");
+        assertEquals("martin", captor.getValue().getUsername());
+        assertSame(captor.getValue(), result);
+    }
+
+    @Test
+    void resetUserPassword_shouldThrowWhenNewPasswordMatchesOldOne() {
+        ResetPasswordDTO request = new ResetPasswordDTO("martin", "mySecurePassword123");
+
+        when(userRepository.findByUsername("martin")).thenReturn(Optional.of(regularUser));
+        // raw new password first, stored hash second
+        when(passwordEncoder.matches("mySecurePassword123", "hashed_password_123")).thenReturn(true);
+
+        assertThrows(PasswordModificationException.class, () -> userService.resetUserPassword(request));
+
+        verify(passwordEncoder, never()).encode(any());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void resetUserPassword_shouldThrowWhenUserDoesNotExist() {
+        ResetPasswordDTO request = new ResetPasswordDTO("ghost", "newPassword456");
+
+        when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
+
+        // assumes getUserByUsername throws UsernameNotFoundException; adjust if it throws something else
+        assertThrows(UsernameNotFoundException.class, () -> userService.resetUserPassword(request));
+
+        verifyNoInteractions(passwordEncoder);
+        verify(userRepository, never()).save(any(User.class));
+    }
+
 }

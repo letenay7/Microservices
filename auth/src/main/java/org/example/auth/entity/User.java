@@ -1,6 +1,7 @@
 package org.example.auth.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.example.auth.security.AccessRole;
 
@@ -21,8 +22,17 @@ public class User {
     private String username;
 
     @Column(nullable = false)
+    @Size(min = 8)
     private String password;
 
     @Column(nullable = false)
     private EnumSet<AccessRole> roles;
+
+    public boolean addRole(AccessRole accessRole) {
+         return roles.add(accessRole);
+    }
+
+    public boolean removeRole(AccessRole accessRole) {
+        return roles.remove(accessRole);
+    }
 }

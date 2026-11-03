@@ -73,11 +73,6 @@ public class RefreshTokenService {
 
     }
 
-    @Transactional
-    public void deleteByToken(String token) {
-        refreshTokenRepository.deleteByToken(token);
-    }
-
     @Scheduled(cron = "0 0 0 * * *")
     @Transactional
     public void clearExpiredTokens() {
