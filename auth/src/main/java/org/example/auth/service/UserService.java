@@ -75,12 +75,20 @@ public class UserService {
         return user;
     }
 
-    public User resetUserPassword(ResetPasswordDTO resetPasswordDTO) {
-        User user = getUserByUsername(resetPasswordDTO.username());
-        if (passwordEncoder.matches(resetPasswordDTO.newPassword(),  user.getPassword())) {
-            throw new PasswordModificationException("New password cannot be the same as the old password");
+
+    @Transactional
+    public User changePassword(String username, ResetPasswordDTO dto) {
+        User user = getUserByUsername(username);
+
+        // matches(rawPassword, encodedPassword): raw first, stored hash second
+        if (!passwordEncoder.matches(dto.currentPassword(), user.getPassword())) {
+            throw new PasswordModificationException("Current password is incorrect");
         }
-        user.setPassword(passwordEncoder.encode(resetPasswordDTO.newPassword()));
+        if (passwordEncoder.matches(dto.newPassword(), user.getPassword())) {
+            throw new PasswordModificationException(
+                    "New password cannot be the same as the old password");
+        }
+        user.setPassword(passwordEncoder.encode(dto.newPassword()));
         return userRepository.save(user);
     }
 

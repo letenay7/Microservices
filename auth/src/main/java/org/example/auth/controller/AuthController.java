@@ -67,9 +67,4 @@ public class AuthController {
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getUsername());
         return ResponseEntity.ok(new AuthResponseDTO(accessToken, refreshToken.getToken()));
     }
-    @PatchMapping("/password")
-    public ResponseEntity<MessageResponseDTO> resetPassword(@RequestBody ResetPasswordDTO dto) {
-        userService.resetUserPassword(dto);
-        return ResponseEntity.ok(new MessageResponseDTO("Password updated"));
-    }
 }

@@ -194,46 +194,58 @@ class UserServiceTests {
     // ---------- password update ----------
 
     @Test
-    void resetUserPassword_shouldHashAndSaveNewPassword() {
-        ResetPasswordDTO request = new ResetPasswordDTO("martin", "newPassword456");
+    void changePassword_shouldHashAndSaveNewPassword() {
+        ResetPasswordDTO request = new ResetPasswordDTO("oldPassword123", "newPassword456");
 
         when(userRepository.findByUsername("martin")).thenReturn(Optional.of(regularUser));
+        when(passwordEncoder.matches("oldPassword123", "hashed_password_123")).thenReturn(true);
         when(passwordEncoder.matches("newPassword456", "hashed_password_123")).thenReturn(false);
         when(passwordEncoder.encode("newPassword456")).thenReturn("hashed_new_password");
         when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        User result = userService.resetUserPassword(request);
+        User result = userService.changePassword("martin", request);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(captor.capture());
         assertEquals("hashed_new_password", captor.getValue().getPassword(),
                 "the new password must be stored hashed, not raw");
-        assertEquals("martin", captor.getValue().getUsername());
         assertSame(captor.getValue(), result);
     }
 
     @Test
-    void resetUserPassword_shouldThrowWhenNewPasswordMatchesOldOne() {
-        ResetPasswordDTO request = new ResetPasswordDTO("martin", "mySecurePassword123");
+    void changePassword_shouldThrowWhenCurrentPasswordIsWrong() {
+        ResetPasswordDTO request = new ResetPasswordDTO("wrongPassword", "newPassword456");
 
         when(userRepository.findByUsername("martin")).thenReturn(Optional.of(regularUser));
-        // raw new password first, stored hash second
-        when(passwordEncoder.matches("mySecurePassword123", "hashed_password_123")).thenReturn(true);
+        when(passwordEncoder.matches("wrongPassword", "hashed_password_123")).thenReturn(false);
 
-        assertThrows(PasswordModificationException.class, () -> userService.resetUserPassword(request));
+        assertThrows(PasswordModificationException.class, () -> userService.changePassword("martin", request));
 
         verify(passwordEncoder, never()).encode(any());
         verify(userRepository, never()).save(any(User.class));
     }
 
     @Test
-    void resetUserPassword_shouldThrowWhenUserDoesNotExist() {
-        ResetPasswordDTO request = new ResetPasswordDTO("ghost", "newPassword456");
+    void changePassword_shouldThrowWhenNewPasswordSameAsCurrent() {
+        ResetPasswordDTO request = new ResetPasswordDTO("samePassword1", "samePassword1");
 
+        when(userRepository.findByUsername("martin")).thenReturn(Optional.of(regularUser));
+        // raw password first, stored hash second
+        when(passwordEncoder.matches("samePassword1", "hashed_password_123")).thenReturn(true);
+
+        assertThrows(PasswordModificationException.class, () -> userService.changePassword("martin", request));
+
+        verify(passwordEncoder, never()).encode(any());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void changePassword_shouldThrowWhenUserDoesNotExist() {
         when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
 
-        // assumes getUserByUsername throws UsernameNotFoundException; adjust if it throws something else
-        assertThrows(UsernameNotFoundException.class, () -> userService.resetUserPassword(request));
+        // assumes getUserByUsername throws UsernameNotFoundException
+        assertThrows(UsernameNotFoundException.class,
+                () -> userService.changePassword("ghost", new ResetPasswordDTO("old", "new")));
 
         verifyNoInteractions(passwordEncoder);
         verify(userRepository, never()).save(any(User.class));

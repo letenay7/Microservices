@@ -74,10 +74,10 @@ public class AuthExceptionHandler {
     @ExceptionHandler(PasswordModificationException.class)
     public ResponseEntity<ErrorResponseDTO> handlePasswordModification(PasswordModificationException ex) {
         ErrorResponseDTO error = new ErrorResponseDTO(
-                HttpStatus.CONFLICT.value(),
+                HttpStatus.BAD_REQUEST.value(),
                 ex.getMessage(),
                 System.currentTimeMillis()
         );
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 }
