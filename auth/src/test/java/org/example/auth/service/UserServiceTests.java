@@ -239,4 +239,36 @@ class UserServiceTests {
         verify(userRepository, never()).save(any(User.class));
     }
 
+    // ---------- promote to admin ----------
+    @Test
+    void promoteToAdmin_shouldAddAdminRoleAndSave() {
+        when(userRepository.findByUsername("martin")).thenReturn(Optional.of(regularUser));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User result = userService.promoteToAdmin("martin");
+
+        assertEquals(EnumSet.of(AccessRole.USER, AccessRole.ADMIN), result.getRoles(),
+                "ADMIN is added, USER is kept");
+        verify(userRepository).save(regularUser);
+    }
+
+    @Test
+    void promoteToAdmin_shouldNotSaveWhenAlreadyAdmin() {
+        when(userRepository.findByUsername("admin")).thenReturn(Optional.of(adminUser));
+
+        User result = userService.promoteToAdmin("admin");
+
+        assertSame(adminUser, result);
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void promoteToAdmin_shouldThrowWhenUserDoesNotExist() {
+        when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
+
+        // assumes getUserByUsername throws UsernameNotFoundException, as in the resetUserPassword test
+        assertThrows(UsernameNotFoundException.class, () -> userService.promoteToAdmin("ghost"));
+
+        verify(userRepository, never()).save(any(User.class));
+    }
 }

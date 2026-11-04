@@ -60,7 +60,7 @@ public class AuthController {
         return ResponseEntity.ok(new MessageResponseDTO(incomingToken));
     }
 
-    @PostMapping("/admin")
+    @PostMapping("/admin-login")
     public ResponseEntity<AuthResponseDTO> loginAdmin(@RequestBody LoginRequestDTO loginRequestDTO) {
         User user = userService.loginAdmin(loginRequestDTO);
         String accessToken = jwtService.generateToken(user.getUsername());

@@ -41,12 +41,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints, listed explicitly so that anything added later
                         // is protected by default.
-                        // (/api/auth/admin is the admin LOGIN: the role check happens in
-                        // UserService.loginAdmin, so it must be reachable without a token.)
                         .requestMatchers(
                                 "/api/auth/register",
                                 "/api/auth/login",
-                                "/api/auth/admin",
+                                "/api/auth/admin-login",
                                 "/api/auth/refresh-token",
                                 "/api/auth/logout",
                                 "/error",

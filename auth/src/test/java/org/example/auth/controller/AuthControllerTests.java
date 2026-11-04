@@ -177,7 +177,7 @@ class AuthControllerTests {
         when(userService.loginAdmin(any(LoginRequestDTO.class)))
                 .thenThrow(new AccessDeniedException("Access Denied"));
 
-        mockMvc.perform(post("/api/auth/admin")
+        mockMvc.perform(post("/api/auth/admin-login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden());
@@ -191,7 +191,7 @@ class AuthControllerTests {
         when(jwtService.generateToken("admin")).thenReturn("mock-access-token");
         when(refreshTokenService.createRefreshToken("admin")).thenReturn(adminRefreshToken);
 
-        mockMvc.perform(post("/api/auth/admin")
+        mockMvc.perform(post("/api/auth/admin-login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andDo(print())
@@ -233,7 +233,7 @@ class AuthControllerTests {
         when(userService.loginAdmin(any(LoginRequestDTO.class)))
                 .thenThrow(new UsernameNotFoundException("User with username ghost not found"));
 
-        mockMvc.perform(post("/api/auth/admin")
+        mockMvc.perform(post("/api/auth/admin-login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isNotFound());

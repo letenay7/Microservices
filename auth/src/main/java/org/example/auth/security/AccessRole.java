@@ -11,9 +11,7 @@ public enum AccessRole {
         this.value = value;
     }
 
-    @Override
-    public String toString() {
+    public String getDisplayName() {
         return name().charAt(0) + name().substring(1).toLowerCase();
-
     }
 }

@@ -111,7 +111,7 @@ class SecurityConfigTests {
         when(jwtService.generateToken("admin")).thenReturn("access-token");
         when(refreshTokenService.createRefreshToken("admin")).thenReturn(refreshToken);
 
-        mockMvc.perform(post("/api/auth/admin")
+        mockMvc.perform(post("/api/auth/admin-login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new LoginRequestDTO("admin", "pw"))))
                 .andExpect(status().isOk());

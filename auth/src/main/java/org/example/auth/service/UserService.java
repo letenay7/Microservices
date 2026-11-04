@@ -13,6 +13,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.EnumSet;
 import java.util.Optional;
@@ -80,6 +81,18 @@ public class UserService {
             throw new PasswordModificationException("New password cannot be the same as the old password");
         }
         user.setPassword(passwordEncoder.encode(resetPasswordDTO.newPassword()));
+        return userRepository.save(user);
+    }
+
+    @Transactional
+    public User promoteToAdmin(String username) {
+        User user = getUserByUsername(username);
+        if (isAdmin(user)) {
+            return user;
+        }
+        if (!user.addRole(AccessRole.ADMIN)) {
+            return user;
+        }
         return userRepository.save(user);
     }
 }
