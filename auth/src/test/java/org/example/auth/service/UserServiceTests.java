@@ -45,6 +45,9 @@ class UserServiceTests {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private RefreshTokenService refreshTokenService;
+
     @InjectMocks
     private UserService userService;
 
@@ -73,10 +76,8 @@ class UserServiceTests {
         RegisterRequestDTO request = new RegisterRequestDTO("martin", "mySecurePassword123");
 
         when(userRepository.existsByUsername("martin")).thenReturn(false);
-        when(passwordEncoder.encode("mySecurePassword123"))
-                .thenReturn("hashed_password_123");
-        when(userRepository.save(any(User.class)))
-                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(passwordEncoder.encode("mySecurePassword123")).thenReturn("hashed_password_123");
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         User result = userService.createUser(request);
 
@@ -109,8 +110,7 @@ class UserServiceTests {
         LoginRequestDTO request = new LoginRequestDTO("martin", "mySecurePassword123");
 
         when(userRepository.findByUsername("martin")).thenReturn(Optional.of(regularUser));
-        when(passwordEncoder.matches("mySecurePassword123", "hashed_password_123"))
-                .thenReturn(true);
+        when(passwordEncoder.matches("mySecurePassword123", "hashed_password_123")).thenReturn(true);
 
         assertSame(regularUser, userService.login(request));
     }
@@ -120,8 +120,7 @@ class UserServiceTests {
         LoginRequestDTO request = new LoginRequestDTO("martin", "wrong-password");
 
         when(userRepository.findByUsername("martin")).thenReturn(Optional.of(regularUser));
-        when(passwordEncoder.matches("wrong-password", "hashed_password_123"))
-                .thenReturn(false);
+        when(passwordEncoder.matches("wrong-password", "hashed_password_123")).thenReturn(false);
 
         assertThrows(BadCredentialsException.class, () -> userService.login(request));
     }
@@ -143,8 +142,7 @@ class UserServiceTests {
         LoginRequestDTO request = new LoginRequestDTO("admin", "StrongPassword123");
 
         when(userRepository.findByUsername("admin")).thenReturn(Optional.of(adminUser));
-        when(passwordEncoder.matches("StrongPassword123", "hashed_admin_password"))
-                .thenReturn(true);
+        when(passwordEncoder.matches("StrongPassword123", "hashed_admin_password")).thenReturn(true);
 
         assertSame(adminUser, userService.loginAdmin(request));
     }
@@ -191,7 +189,7 @@ class UserServiceTests {
         verifyNoInteractions(passwordEncoder);
     }
 
-    // ---------- password update ----------
+    // ---------- changePassword ----------
 
     @Test
     void changePassword_shouldHashAndSaveNewPassword() {
@@ -210,6 +208,7 @@ class UserServiceTests {
         assertEquals("hashed_new_password", captor.getValue().getPassword(),
                 "the new password must be stored hashed, not raw");
         assertSame(captor.getValue(), result);
+        verify(refreshTokenService).revokeAllTokens("martin");
     }
 
     @Test
@@ -220,6 +219,7 @@ class UserServiceTests {
         when(passwordEncoder.matches("wrongPassword", "hashed_password_123")).thenReturn(false);
 
         assertThrows(PasswordModificationException.class, () -> userService.changePassword("martin", request));
+        verifyNoInteractions(refreshTokenService);
 
         verify(passwordEncoder, never()).encode(any());
         verify(userRepository, never()).save(any(User.class));
@@ -234,6 +234,7 @@ class UserServiceTests {
         when(passwordEncoder.matches("samePassword1", "hashed_password_123")).thenReturn(true);
 
         assertThrows(PasswordModificationException.class, () -> userService.changePassword("martin", request));
+        verifyNoInteractions(refreshTokenService);
 
         verify(passwordEncoder, never()).encode(any());
         verify(userRepository, never()).save(any(User.class));
@@ -248,10 +249,12 @@ class UserServiceTests {
                 () -> userService.changePassword("ghost", new ResetPasswordDTO("old", "new")));
 
         verifyNoInteractions(passwordEncoder);
+        verifyNoInteractions(refreshTokenService);
         verify(userRepository, never()).save(any(User.class));
     }
 
-    // ---------- promote to admin ----------
+    // ---------- promoteToAdmin ----------
+
     @Test
     void promoteToAdmin_shouldAddAdminRoleAndSave() {
         when(userRepository.findByUsername("martin")).thenReturn(Optional.of(regularUser));

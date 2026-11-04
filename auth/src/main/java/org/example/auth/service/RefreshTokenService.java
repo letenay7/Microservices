@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -42,35 +41,40 @@ public class RefreshTokenService {
     }
 
     public RefreshToken getRefreshToken(String token) {
-        Optional<RefreshToken> optionalRefreshToken = refreshTokenRepository.findByToken(token);
-        if (optionalRefreshToken.isPresent()) {
-            return optionalRefreshToken.get();
-        }
-        throw new TokenNotFoundException("Token not found: " + token);
+       return  refreshTokenRepository.findByToken(token)
+               .orElseThrow(() -> new TokenNotFoundException("Token not found: " + token));
     }
 
+    public boolean isTokenExpired(RefreshToken token) {
+        return token.getExpiryDate().isBefore(Instant.now());
+    }
+
+    @Transactional(noRollbackFor = TokenExpiredException.class)
     public RefreshToken verifyExpiration(RefreshToken token) {
-        if (token.getExpiryDate().isAfter(Instant.now())) {
+        if (isTokenExpired(token)) {
             refreshTokenRepository.delete(token);
             throw new TokenExpiredException("Refresh token expired");
         }
         return token;
     }
+
+    @Transactional(noRollbackFor = TokenExpiredException.class)
     public RefreshToken refreshIncomingToken(String incomingToken) {
-        Optional<RefreshToken> token = refreshTokenRepository.findByToken(incomingToken);
-        if (token.isPresent()) {
-            return verifyExpiration(token.get());
-        }
-        throw new TokenExpiredException("Refresh token expired");
+        return verifyExpiration(getRefreshToken(incomingToken));
     }
 
+    @Transactional
     public void logoutRefreshToken(String incomingToken) {
-        Optional<RefreshToken> token = refreshTokenRepository.findByToken(incomingToken);
-        if (token.isPresent()) {
-            refreshTokenRepository.deleteByToken(incomingToken);
+        if (refreshTokenRepository.findByToken(incomingToken).isEmpty()) {
+            throw new TokenNotFoundException("Refresh token not found");
         }
-        throw new TokenNotFoundException("Refresh token not found");
+        refreshTokenRepository.deleteByToken(incomingToken);       // previously fell through to the throw
+    }
 
+    /** Logs the user out everywhere, e.g. after a password change. */
+    @Transactional
+    public void revokeAllTokens(String username) {
+        refreshTokenRepository.deleteByUserUsername(username);
     }
 
     @Scheduled(cron = "0 0 0 * * *")

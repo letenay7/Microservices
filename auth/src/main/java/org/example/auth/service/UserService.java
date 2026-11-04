@@ -22,10 +22,12 @@ import java.util.Optional;
 public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
 
-    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, RefreshTokenService refreshTokenService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.refreshTokenService = refreshTokenService;
     }
 
     public User createUser(RegisterRequestDTO registerRequestDTO) {
@@ -89,7 +91,9 @@ public class UserService {
                     "New password cannot be the same as the old password");
         }
         user.setPassword(passwordEncoder.encode(dto.newPassword()));
-        return userRepository.save(user);
+         User saved = userRepository.save(user);
+         refreshTokenService.revokeAllTokens(username);
+         return saved;
     }
 
     @Transactional
