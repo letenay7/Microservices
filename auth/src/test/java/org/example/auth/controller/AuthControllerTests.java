@@ -7,6 +7,7 @@ import org.example.auth.entity.RefreshToken;
 import org.example.auth.entity.User;
 import org.example.auth.exception.TokenNotFoundException;
 import org.example.auth.exception.UserAlreadyExistsException;
+import org.example.auth.repository.UserRepository;
 import org.example.auth.security.AccessRole;
 import org.example.auth.service.JwtService;
 import org.example.auth.service.RefreshTokenService;
@@ -45,6 +46,9 @@ class AuthControllerTests {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockitoBean
+    private UserRepository userRepository;
 
     @MockitoBean
     private UserService userService;

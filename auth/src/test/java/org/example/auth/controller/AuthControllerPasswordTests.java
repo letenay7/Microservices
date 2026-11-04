@@ -3,6 +3,7 @@ package org.example.auth.controller;
 import org.example.auth.dto.ResetPasswordDTO;
 import org.example.auth.entity.User;
 import org.example.auth.exception.PasswordModificationException;
+import org.example.auth.repository.UserRepository;
 import org.example.auth.service.JwtService;
 import org.example.auth.service.RefreshTokenService;
 import org.example.auth.service.UserService;
@@ -40,6 +41,9 @@ class AuthControllerPasswordTests {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @MockitoBean
+    private UserRepository userRepository;
 
     @MockitoBean
     private UserService userService;
