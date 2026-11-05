@@ -15,6 +15,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -77,12 +78,13 @@ class UserServiceTests {
 
         when(userRepository.existsByUsername("martin")).thenReturn(false);
         when(passwordEncoder.encode("mySecurePassword123")).thenReturn("hashed_password_123");
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.saveAndFlush(any(User.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         User result = userService.createUser(request);
 
         ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
-        verify(userRepository).save(captor.capture());
+        verify(userRepository).saveAndFlush(captor.capture());
         User saved = captor.getValue();
 
         assertEquals("martin", saved.getUsername());
@@ -99,8 +101,22 @@ class UserServiceTests {
 
         assertThrows(UserAlreadyExistsException.class, () -> userService.createUser(request));
 
-        verify(userRepository, never()).save(any(User.class));
+        verify(userRepository, never()).saveAndFlush(any(User.class));
         verifyNoInteractions(passwordEncoder);
+    }
+
+    @Test
+    void createUser_shouldThrowUserAlreadyExistsWhenInsertHitsUniqueConstraint() {
+        RegisterRequestDTO request = new RegisterRequestDTO("martin", "mySecurePassword123");
+
+        // another request registered "martin" between the existence check and the insert
+        when(userRepository.existsByUsername("martin")).thenReturn(false);
+        when(passwordEncoder.encode("mySecurePassword123"))
+                .thenReturn("hashed_password_123");
+        when(userRepository.saveAndFlush(any(User.class)))
+                .thenThrow(new DataIntegrityViolationException("duplicate key"));
+
+        assertThrows(UserAlreadyExistsException.class, () -> userService.createUser(request));
     }
 
     // ---------- login ----------

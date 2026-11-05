@@ -1,6 +1,10 @@
 package org.example.auth.exception;
 
+import jakarta.validation.ConstraintViolationException;
 import org.example.auth.dto.ErrorResponseDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -14,6 +18,8 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class AuthExceptionHandler {
+    private static final Logger LOG = LoggerFactory.getLogger(AuthExceptionHandler.class);
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ErrorResponseDTO> handleBadCredentials(BadCredentialsException exception) {
         ErrorResponseDTO errorResponse = new ErrorResponseDTO(
@@ -91,6 +97,34 @@ public class AuthExceptionHandler {
                 .map(error -> error.getField() + ": " + error.getDefaultMessage())
                 .collect(Collectors.joining(", "));
 
+        ErrorResponseDTO error = new ErrorResponseDTO(
+                HttpStatus.BAD_REQUEST.value(),
+                message,
+                System.currentTimeMillis()
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponseDTO> handleDataIntegrity(DataIntegrityViolationException exception) {
+        // Constraint names and SQL stay in the server log; the client only gets a generic message
+        LOG.warn("Data integrity violation: {}", exception.getMostSpecificCause().getMessage());
+        ErrorResponseDTO error = new ErrorResponseDTO(
+                HttpStatus.CONFLICT.value(),
+                "The request conflicts with existing data",
+                System.currentTimeMillis()
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
+
+    // Thrown when entity validation (or @Validated method validation) fails after the controller
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponseDTO> handleConstraintViolation(ConstraintViolationException exception) {
+        // property path + constraint message only: never echo the rejected value
+        String message = exception.getConstraintViolations().stream()
+                .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
+                .sorted()
+                .collect(Collectors.joining(", "));
         ErrorResponseDTO error = new ErrorResponseDTO(
                 HttpStatus.BAD_REQUEST.value(),
                 message,

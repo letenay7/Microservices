@@ -8,6 +8,7 @@ import org.example.auth.exception.PasswordModificationException;
 import org.example.auth.exception.UserAlreadyExistsException;
 import org.example.auth.repository.UserRepository;
 import org.example.auth.security.AccessRole;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -41,7 +42,11 @@ public class UserService {
 
         // set default role AccessRole.USER
         user.setRoles(EnumSet.of(AccessRole.USER));
-        return userRepository.save(user);
+        try {
+            return userRepository.saveAndFlush(user);
+        } catch (DataIntegrityViolationException e) {
+            throw new UserAlreadyExistsException("User with username " + username + " already exists");
+        }
     }
 
     private User getUserByUsername(String username) {
