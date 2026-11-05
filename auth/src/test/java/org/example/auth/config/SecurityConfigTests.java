@@ -70,7 +70,6 @@ class SecurityConfigTests {
         acceptToken("admin-token", "admin", EnumSet.of(AccessRole.ADMIN, AccessRole.USER));
     }
 
-
     private void acceptToken(String token, String username, EnumSet<AccessRole> roles) {
         User account = new User();
         account.setUsername(username);
@@ -101,20 +100,12 @@ class SecurityConfigTests {
     }
 
     @Test
-    void adminLoginShouldBeReachableWithoutToken() throws Exception {
-        User admin = new User();
-        admin.setUsername("admin");
-        RefreshToken refreshToken = new RefreshToken();
-        refreshToken.setToken("refresh-token");
-
-        when(userService.loginAdmin(any(LoginRequestDTO.class))).thenReturn(admin);
-        when(jwtService.generateToken("admin")).thenReturn("access-token");
-        when(refreshTokenService.createRefreshToken("admin")).thenReturn(refreshToken);
+    void removedAdminLoginPathShouldNoLongerBePubliclyReachable() throws Exception {
 
         mockMvc.perform(post("/api/auth/admin-login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new LoginRequestDTO("admin", "pw"))))
-                .andExpect(status().isOk());
+                .andExpect(status().isUnauthorized());
     }
 
     // ---------- authentication ----------

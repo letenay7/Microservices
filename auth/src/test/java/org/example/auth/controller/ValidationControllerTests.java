@@ -78,16 +78,6 @@ class ValidationControllerTests {
     }
 
     @Test
-    void adminLoginShouldRejectBlankUsername() throws Exception {
-        mockMvc.perform(post("/api/auth/admin-login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"username\":\"\",\"password\":\"whatever\"}"))
-                .andExpect(status().isBadRequest());
-
-        verify(userService, never()).loginAdmin(any(LoginRequestDTO.class));
-    }
-
-    @Test
     void changePasswordShouldRejectWeakNewPassword() throws Exception {
         mockMvc.perform(patch("/api/user/password")
                         .principal(() -> "martin")

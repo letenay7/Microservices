@@ -18,9 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
@@ -31,7 +29,6 @@ import java.util.EnumSet;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -60,9 +57,7 @@ class AuthControllerTests {
     private RefreshTokenService refreshTokenService;
 
     private User user;
-    private User adminUser;
     private RefreshToken userRefreshToken;
-    private RefreshToken adminRefreshToken;
 
     @BeforeEach
     void setUp() {
@@ -77,18 +72,6 @@ class AuthControllerTests {
         userRefreshToken.setToken("mock-refresh-token-uuid");
         userRefreshToken.setExpiryDate(Instant.now().plusMillis(REFRESH_TOKEN_DURATION_MS));
         userRefreshToken.setUser(user);
-
-        adminUser = new User();
-        adminUser.setId(2L);
-        adminUser.setUsername("admin");
-        adminUser.setPassword("hashed_admin_password");
-        adminUser.setRoles(EnumSet.of(AccessRole.ADMIN, AccessRole.USER));
-
-        adminRefreshToken = new RefreshToken();
-        adminRefreshToken.setId(2L);
-        adminRefreshToken.setToken("mock-refresh-token-admin-uuid");
-        adminRefreshToken.setExpiryDate(Instant.now().plusMillis(REFRESH_TOKEN_DURATION_MS));
-        adminRefreshToken.setUser(adminUser);
     }
 
     @Test
@@ -170,35 +153,6 @@ class AuthControllerTests {
         verify(refreshTokenService).logoutRefreshToken("mock-refresh-token-uuid");
     }
 
-    @Test
-    void shouldRejectNonAdminUser() throws Exception {
-        LoginRequestDTO request = new LoginRequestDTO("martin", "mySecurePassword123");
-
-        when(userService.loginAdmin(any(LoginRequestDTO.class)))
-                .thenThrow(new AccessDeniedException("Access Denied"));
-
-        mockMvc.perform(post("/api/auth/admin-login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isForbidden());
-    }
-
-    @Test
-    void shouldAcceptAdminUser() throws Exception {
-        LoginRequestDTO request = new LoginRequestDTO("admin", "StrongPassword123");
-
-        when(userService.loginAdmin(any(LoginRequestDTO.class))).thenReturn(adminUser);
-        when(jwtService.generateToken("admin")).thenReturn("mock-access-token");
-        when(refreshTokenService.createRefreshToken("admin")).thenReturn(adminRefreshToken);
-
-        mockMvc.perform(post("/api/auth/admin-login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").value("mock-access-token"))
-                .andExpect(jsonPath("$.refreshToken").value("mock-refresh-token-admin-uuid"));
-    }
 
     @Test
     void shouldReturnConflictWhenUserAlreadyExists() throws Exception {
@@ -224,19 +178,6 @@ class AuthControllerTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void shouldReturnNotFoundWhenAdminUserDoesNotExist() throws Exception {
-        LoginRequestDTO request = new LoginRequestDTO("ghost", "whatever");
-
-        when(userService.loginAdmin(any(LoginRequestDTO.class)))
-                .thenThrow(new UsernameNotFoundException("User with username ghost not found"));
-
-        mockMvc.perform(post("/api/auth/admin-login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound());
     }
 
     @Test

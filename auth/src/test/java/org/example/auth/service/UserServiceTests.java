@@ -16,7 +16,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -148,60 +147,6 @@ class UserServiceTests {
         when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
 
         assertThrows(UsernameNotFoundException.class, () -> userService.login(request));
-        verifyNoInteractions(passwordEncoder);
-    }
-
-    // ---------- loginAdmin ----------
-
-    @Test
-    void loginAdmin_shouldReturnUserWhenAdminWithValidPassword() {
-        LoginRequestDTO request = new LoginRequestDTO("admin", "StrongPassword123");
-
-        when(userRepository.findByUsername("admin")).thenReturn(Optional.of(adminUser));
-        when(passwordEncoder.matches("StrongPassword123", "hashed_admin_password")).thenReturn(true);
-
-        assertSame(adminUser, userService.loginAdmin(request));
-    }
-
-    @Test
-    void loginAdmin_shouldThrowAccessDeniedWhenUserIsNotAdmin() {
-        LoginRequestDTO request = new LoginRequestDTO("martin", "mySecurePassword123");
-
-        when(userRepository.findByUsername("martin")).thenReturn(Optional.of(regularUser));
-        when(passwordEncoder.matches("mySecurePassword123", "hashed_password_123")).thenReturn(true);
-
-        assertThrows(AccessDeniedException.class, () -> userService.loginAdmin(request));
-    }
-
-    @Test
-    void loginAdmin_shouldThrowBadCredentialsWhenPasswordIsWrong() {
-        LoginRequestDTO request = new LoginRequestDTO("admin", "wrong-password");
-
-        when(userRepository.findByUsername("admin")).thenReturn(Optional.of(adminUser));
-        when(passwordEncoder.matches("wrong-password", "hashed_admin_password")).thenReturn(false);
-
-        assertThrows(BadCredentialsException.class, () -> userService.loginAdmin(request));
-    }
-
-    @Test
-    void loginAdmin_shouldNotRevealRoleWhenNonAdminHasWrongPassword() {
-        // Password is checked before the role, so a wrong password must yield
-        // BadCredentials, never AccessDenied.
-        LoginRequestDTO request = new LoginRequestDTO("martin", "wrong-password");
-
-        when(userRepository.findByUsername("martin")).thenReturn(Optional.of(regularUser));
-        when(passwordEncoder.matches("wrong-password", "hashed_password_123")).thenReturn(false);
-
-        assertThrows(BadCredentialsException.class, () -> userService.loginAdmin(request));
-    }
-
-    @Test
-    void loginAdmin_shouldThrowUsernameNotFoundWhenUserDoesNotExist() {
-        LoginRequestDTO request = new LoginRequestDTO("ghost", "whatever");
-
-        when(userRepository.findByUsername("ghost")).thenReturn(Optional.empty());
-
-        assertThrows(UsernameNotFoundException.class, () -> userService.loginAdmin(request));
         verifyNoInteractions(passwordEncoder);
     }
 

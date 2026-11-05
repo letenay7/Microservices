@@ -62,13 +62,4 @@ public class AuthController {
         refreshTokenService.logoutRefreshToken(incomingToken);
         return ResponseEntity.ok(new MessageResponseDTO(incomingToken));
     }
-
-    @PostMapping("/admin-login")
-    public ResponseEntity<AuthResponseDTO> loginAdmin(
-             @Valid @RequestBody LoginRequestDTO loginRequestDTO) {
-        User user = userService.loginAdmin(loginRequestDTO);
-        String accessToken = jwtService.generateToken(user.getUsername());
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getUsername());
-        return ResponseEntity.ok(new AuthResponseDTO(accessToken, refreshToken.getToken()));
-    }
 }

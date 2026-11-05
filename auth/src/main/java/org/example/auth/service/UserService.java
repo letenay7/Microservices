@@ -9,7 +9,6 @@ import org.example.auth.exception.UserAlreadyExistsException;
 import org.example.auth.repository.UserRepository;
 import org.example.auth.security.AccessRole;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -70,18 +69,6 @@ public class UserService {
         return user.getRoles().stream()
                 .anyMatch(role -> role.getValue().equals("ADMIN"));
     }
-
-    public User loginAdmin(LoginRequestDTO loginRequestDTO) {
-        User user = getUserByUsername(loginRequestDTO.username());
-        if (!passwordEncoder.matches(loginRequestDTO.password(), user.getPassword())) {
-            throw new BadCredentialsException("Invalid username or password");
-        }
-        if (!isAdmin(user)) {
-            throw new AccessDeniedException("Access Denied");
-        }
-        return user;
-    }
-
 
     @Transactional
     public User changePassword(String username, ResetPasswordDTO dto) {
