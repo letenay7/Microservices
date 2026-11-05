@@ -17,3 +17,7 @@ spring:
     show-sql: true
 springdotenv:
   filename: ../.env
+
+bootstrap:
+  admin-username: ${APP_BOOTSTRAP_ADMIN_USERNAME}
+  admin-password: ${APP_BOOTSTRAP_ADMIN_PASSWORD}

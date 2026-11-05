@@ -61,12 +61,12 @@ class RefreshTokenServiceIntegrationTests {
         return userRepository.save(user);
     }
 
-    private RefreshToken saveToken(User user, String value, Instant expiry) {
+    private void saveToken(User user, String value, Instant expiry) {
         RefreshToken token = new RefreshToken();
         token.setUser(user);
         token.setToken(value);
         token.setExpiryDate(expiry);
-        return refreshTokenRepository.save(token);
+        refreshTokenRepository.save(token);
     }
 
     @Test
@@ -94,7 +94,7 @@ class RefreshTokenServiceIntegrationTests {
 
     @Test
     void expiredTokenShouldBeDeletedEvenThoughAnExceptionIsThrown() {
-        // Proves noRollbackFor = TokenExpiredException works: without it the delete is rolled back
+        // Proves noRollbackFor = TokenExpiredException works: without it the delete operation is rolled back
         User user = saveUser("martin");
         saveToken(user, "expired-token", Instant.now().minusSeconds(60));
 
