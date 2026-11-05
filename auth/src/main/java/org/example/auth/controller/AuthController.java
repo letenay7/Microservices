@@ -1,5 +1,6 @@
 package org.example.auth.controller;
 
+import jakarta.validation.Valid;
 import org.example.auth.dto.*;
 import org.example.auth.entity.RefreshToken;
 import org.example.auth.entity.User;
@@ -25,7 +26,8 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public ResponseEntity<AuthResponseDTO> registerUser(@RequestBody RegisterRequestDTO registerRequestDTO) {
+    public ResponseEntity<AuthResponseDTO> registerUser(
+            @Valid @RequestBody RegisterRequestDTO registerRequestDTO) {
         User user = userService.createUser(registerRequestDTO);
         String username = user.getUsername();
         String accessToken = jwtService.generateToken(username);
@@ -35,7 +37,8 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponseDTO> loginUser(@RequestBody LoginRequestDTO loginRequestDTO) {
+    public ResponseEntity<AuthResponseDTO> loginUser(
+            @Valid @RequestBody LoginRequestDTO loginRequestDTO) {
         User user = userService.login(loginRequestDTO);
         String accessToken = jwtService.generateToken(user.getUsername());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getUsername());
@@ -44,7 +47,7 @@ public class AuthController {
 
     @PostMapping("/refresh-token")
     public ResponseEntity<AuthResponseDTO> refreshCurrentToken(
-            @RequestBody TokenRefreshRequestDTO tokenRefreshRequestDTO) {
+            @Valid @RequestBody TokenRefreshRequestDTO tokenRefreshRequestDTO) {
         String incomingToken = tokenRefreshRequestDTO.refreshToken();
         RefreshToken verifiedToken = refreshTokenService.refreshIncomingToken(incomingToken);
         User tokUser = verifiedToken.getUser();
@@ -54,14 +57,15 @@ public class AuthController {
 
     @PostMapping("/logout")
     public ResponseEntity<MessageResponseDTO> logoutCurrentToken(
-            @RequestBody TokenRefreshRequestDTO tokenRefreshRequestDTO) {
+            @Valid @RequestBody TokenRefreshRequestDTO tokenRefreshRequestDTO) {
         String incomingToken = tokenRefreshRequestDTO.refreshToken();
         refreshTokenService.logoutRefreshToken(incomingToken);
         return ResponseEntity.ok(new MessageResponseDTO(incomingToken));
     }
 
     @PostMapping("/admin-login")
-    public ResponseEntity<AuthResponseDTO> loginAdmin(@RequestBody LoginRequestDTO loginRequestDTO) {
+    public ResponseEntity<AuthResponseDTO> loginAdmin(
+             @Valid @RequestBody LoginRequestDTO loginRequestDTO) {
         User user = userService.loginAdmin(loginRequestDTO);
         String accessToken = jwtService.generateToken(user.getUsername());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getUsername());

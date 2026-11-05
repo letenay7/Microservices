@@ -1,6 +1,7 @@
 package org.example.auth.controller;
 
 
+import jakarta.validation.Valid;
 import org.example.auth.dto.ResetPasswordDTO;
 import org.example.auth.service.UserService;
 import org.springframework.http.ResponseEntity;
@@ -22,7 +23,7 @@ public class UserController {
 
     // PATCH: partial update of the user. The username comes from the authenticated principal.
     @PatchMapping("/password")
-    public ResponseEntity<Void> changePassword(@RequestBody ResetPasswordDTO resetPasswordDTO,
+    public ResponseEntity<Void> changePassword(@Valid @RequestBody ResetPasswordDTO resetPasswordDTO,
                                                Principal principal) {
         userService.changePassword(principal.getName(), resetPasswordDTO);
         return ResponseEntity.noContent().build();

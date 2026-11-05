@@ -1,4 +1,9 @@
 package org.example.auth.dto;
 
-public record ResetPasswordDTO(String currentPassword,  String newPassword) {
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record ResetPasswordDTO(
+        @NotBlank String currentPassword,
+        @NotBlank @Size(min = 8, max = 72) String newPassword) {
 }

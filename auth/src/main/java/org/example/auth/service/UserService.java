@@ -99,9 +99,6 @@ public class UserService {
     @Transactional
     public User promoteToAdmin(String username) {
         User user = getUserByUsername(username);
-        if (isAdmin(user)) {
-            return user;
-        }
         if (!user.addRole(AccessRole.ADMIN)) {
             return user;
         }

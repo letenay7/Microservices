@@ -85,7 +85,7 @@ class UserControllerTests {
         mockMvc.perform(patch(PASSWORD_URL)
                         .principal(() -> "ghost")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new ResetPasswordDTO("old", "new"))))
+                        .content(objectMapper.writeValueAsString(new ResetPasswordDTO("oldPassword123", "newPassword456"))))
                 .andExpect(status().isNotFound());
     }
 }
