@@ -68,7 +68,7 @@ public class RefreshTokenService {
         if (refreshTokenRepository.findByToken(incomingToken).isEmpty()) {
             throw new TokenNotFoundException("Refresh token not found");
         }
-        refreshTokenRepository.deleteByToken(incomingToken);       // previously fell through to the throw
+        refreshTokenRepository.deleteByToken(incomingToken);
     }
 
     /** Logs the user out everywhere, e.g. after a password change. */

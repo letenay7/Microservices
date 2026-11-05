@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -29,6 +30,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 /** Plain unit tests: repositories are mocked, the real RefreshTokenService logic runs. */
@@ -129,6 +131,20 @@ class RefreshTokenServiceTests {
         assertThrows(TokenNotFoundException.class, () -> refreshTokenService.getRefreshToken("unknown"));
     }
 
+    // ---------- isTokenExpired ----------
+
+    @Test
+    void isTokenExpired_shouldBeFalseForValidToken() {
+        assertFalse(refreshTokenService.isTokenExpired(validToken));
+        verifyNoInteractions(refreshTokenRepository);   // pure check, no side effects
+    }
+
+    @Test
+    void isTokenExpired_shouldBeTrueForExpiredToken() {
+        assertTrue(refreshTokenService.isTokenExpired(expiredToken));
+        verifyNoInteractions(refreshTokenRepository);
+    }
+
     // ---------- verifyExpiration ----------
 
     @Test
@@ -207,6 +223,7 @@ class RefreshTokenServiceTests {
     @Test
     void clearExpiredTokens_shouldDeleteTokensExpiredBeforeNow() {
         Instant before = Instant.now();
+
         refreshTokenService.clearExpiredTokens();
 
         ArgumentCaptor<Instant> captor = ArgumentCaptor.forClass(Instant.class);
