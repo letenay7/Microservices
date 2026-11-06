@@ -67,7 +67,9 @@ public class AdminBootstrap implements ApplicationRunner {
 
         Optional<User> existing = userRepository.findByUsername(username);
         if (existing.isPresent()) {
-            if (!existing.get().getRoles().contains(AccessRole.ADMIN)) {
+            if (existing.get().getRoles().contains(AccessRole.ADMIN)) {
+                log.info("Bootstrap admin '{}' already exists; nothing to do", username);
+            } else {
                 log.warn("User '{}' already exists without the ADMIN role and was NOT modified. "
                         + "Use another bootstrap username, or promote that account deliberately.", username);
             }
