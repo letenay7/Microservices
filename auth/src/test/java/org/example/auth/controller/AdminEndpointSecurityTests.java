@@ -21,6 +21,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -89,5 +90,36 @@ class AdminEndpointSecurityTests {
                 .andExpect(status().isUnauthorized());
 
         verify(userService, never()).promoteToAdmin(anyString());
+    }
+
+    // ---------- demotion ----------
+
+    @Test
+    void adminShouldBeAbleToDemote() throws Exception {
+        User demoted = new User();
+        demoted.setUsername("martin");
+        demoted.setRoles(EnumSet.of(AccessRole.USER));
+        when(userService.demoteFromAdmin("martin")).thenReturn(demoted);
+
+        mockMvc.perform(delete(PROMOTE_URL).header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk());
+
+        verify(userService).demoteFromAdmin("martin");
+    }
+
+    @Test
+    void regularUserShouldBeForbiddenFromDemotingAndServiceNeverCalled() throws Exception {
+        mockMvc.perform(delete(PROMOTE_URL).header("Authorization", "Bearer user-token"))
+                .andExpect(status().isForbidden());
+
+        verify(userService, never()).demoteFromAdmin(anyString());
+    }
+
+    @Test
+    void anonymousShouldGet401OnDemotionAndServiceNeverCalled() throws Exception {
+        mockMvc.perform(delete(PROMOTE_URL))
+                .andExpect(status().isUnauthorized());
+
+        verify(userService, never()).demoteFromAdmin(anyString());
     }
 }

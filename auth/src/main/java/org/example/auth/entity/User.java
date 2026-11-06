@@ -6,6 +6,8 @@ import lombok.*;
 import org.example.auth.security.AccessRole;
 
 import java.util.EnumSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Entity
 @Table(name = "users")
@@ -35,5 +37,11 @@ public class User {
 
     public boolean removeRole(AccessRole accessRole) {
         return roles.remove(accessRole);
+    }
+
+    public Set<String> rolesToStringSet() {
+        return roles.stream()
+                .map(AccessRole::getValue)
+                .collect(Collectors.toSet());
     }
 }

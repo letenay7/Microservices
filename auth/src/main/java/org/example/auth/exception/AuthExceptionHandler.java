@@ -132,4 +132,14 @@ public class AuthExceptionHandler {
         );
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
+
+    @ExceptionHandler(LastAdminException.class)
+    public ResponseEntity<ErrorResponseDTO> handleLastAdmin(LastAdminException ex) {
+        ErrorResponseDTO error = new ErrorResponseDTO(
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                System.currentTimeMillis()
+        );
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error);
+    }
 }

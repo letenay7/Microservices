@@ -1,6 +1,7 @@
 package org.example.auth.controller;
 
 import org.example.auth.entity.User;
+import org.example.auth.exception.LastAdminException;
 import org.example.auth.repository.UserRepository;
 import org.example.auth.security.AccessRole;
 import org.example.auth.service.JwtService;
@@ -18,6 +19,7 @@ import java.util.EnumSet;
 import static org.hamcrest.Matchers.hasItem;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -68,6 +70,44 @@ class AdminControllerTests {
                 .thenThrow(new UsernameNotFoundException("User with username ghost not found"));
 
         mockMvc.perform(put(PROMOTE_URL, "ghost").principal(() -> "admin"))
+                .andExpect(status().isNotFound());
+    }
+
+    // ---------- demotion (DELETE on the same URL) ----------
+
+    @Test
+    void shouldDemoteUserAndReturnSafeView() throws Exception {
+        User demoted = new User();
+        demoted.setUsername("martin");
+        demoted.setPassword("hashed_password_123");
+        demoted.setRoles(EnumSet.of(AccessRole.USER));
+
+        when(userService.demoteFromAdmin("martin")).thenReturn(demoted);
+
+        mockMvc.perform(delete(PROMOTE_URL, "martin").principal(() -> "admin"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.username").value("martin"))
+                .andExpect(jsonPath("$.roles.length()").value(1))
+                .andExpect(jsonPath("$.password").doesNotExist());
+
+        verify(userService).demoteFromAdmin("martin");
+    }
+
+    @Test
+    void shouldReturnConflictWhenDemotingTheLastAdmin() throws Exception {
+        when(userService.demoteFromAdmin("admin"))
+                .thenThrow(new LastAdminException("Cannot remove the last admin"));
+
+        mockMvc.perform(delete(PROMOTE_URL, "admin").principal(() -> "admin"))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenDemotingAnUnknownUser() throws Exception {
+        when(userService.demoteFromAdmin("ghost"))
+                .thenThrow(new UsernameNotFoundException("User with username ghost not found"));
+
+        mockMvc.perform(delete(PROMOTE_URL, "ghost").principal(() -> "admin"))
                 .andExpect(status().isNotFound());
     }
 }

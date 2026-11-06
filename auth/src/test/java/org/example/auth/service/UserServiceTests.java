@@ -4,6 +4,7 @@ import org.example.auth.dto.LoginRequestDTO;
 import org.example.auth.dto.RegisterRequestDTO;
 import org.example.auth.dto.ResetPasswordDTO;
 import org.example.auth.entity.User;
+import org.example.auth.exception.LastAdminException;
 import org.example.auth.exception.PasswordModificationException;
 import org.example.auth.exception.UserAlreadyExistsException;
 import org.example.auth.repository.UserRepository;
@@ -21,6 +22,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -244,6 +246,53 @@ class UserServiceTests {
 
         // assumes getUserByUsername throws UsernameNotFoundException, as in the resetUserPassword test
         assertThrows(UsernameNotFoundException.class, () -> userService.promoteToAdmin("ghost"));
+
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    // ---------- demoteFromAdmin ----------
+
+    @Test
+    void demoteFromAdmin_shouldRemoveAdminRoleWhenAnotherAdminExists() {
+        User secondAdmin = new User();
+        secondAdmin.setUsername("second-admin");
+        secondAdmin.setPassword("hashed_admin_password");
+        secondAdmin.setRoles(EnumSet.of(AccessRole.ADMIN, AccessRole.USER));
+
+        when(userRepository.findAllForUpdate()).thenReturn(List.of(adminUser, secondAdmin, regularUser));
+        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        User result = userService.demoteFromAdmin("admin");
+
+        assertEquals(EnumSet.of(AccessRole.USER), result.getRoles(), "only ADMIN is removed, USER stays");
+        verify(userRepository).save(adminUser);
+    }
+
+    @Test
+    void demoteFromAdmin_shouldRefuseToRemoveTheLastAdmin() {
+        when(userRepository.findAllForUpdate()).thenReturn(List.of(adminUser, regularUser));
+
+        assertThrows(LastAdminException.class, () -> userService.demoteFromAdmin("admin"));
+
+        assertEquals(EnumSet.of(AccessRole.ADMIN, AccessRole.USER), adminUser.getRoles());
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void demoteFromAdmin_shouldBeANoOpForAUserWhoIsNotAnAdmin() {
+        when(userRepository.findAllForUpdate()).thenReturn(List.of(adminUser, regularUser));
+
+        User result = userService.demoteFromAdmin("martin");
+
+        assertSame(regularUser, result);
+        verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void demoteFromAdmin_shouldThrowWhenUserDoesNotExist() {
+        when(userRepository.findAllForUpdate()).thenReturn(List.of(adminUser));
+
+        assertThrows(UsernameNotFoundException.class, () -> userService.demoteFromAdmin("ghost"));
 
         verify(userRepository, never()).save(any(User.class));
     }

@@ -4,6 +4,7 @@ import org.example.auth.dto.LoginRequestDTO;
 import org.example.auth.dto.RegisterRequestDTO;
 import org.example.auth.dto.ResetPasswordDTO;
 import org.example.auth.entity.User;
+import org.example.auth.exception.LastAdminException;
 import org.example.auth.exception.PasswordModificationException;
 import org.example.auth.exception.UserAlreadyExistsException;
 import org.example.auth.repository.UserRepository;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -65,11 +67,6 @@ public class UserService {
         return user;
     }
 
-    private boolean isAdmin(User user) {
-        return user.getRoles().stream()
-                .anyMatch(role -> role.getValue().equals("ADMIN"));
-    }
-
     @Transactional
     public User changePassword(String username, ResetPasswordDTO dto) {
         User user = getUserByUsername(username);
@@ -95,5 +92,28 @@ public class UserService {
             return user;
         }
         return userRepository.save(user);
+    }
+
+    @Transactional
+    public User demoteFromAdmin(String username) {
+        List<User> users = userRepository.findAllForUpdate();
+        User target = users.stream()
+                .filter(user -> user.getUsername().equals(username))
+                .findFirst()
+                .orElseThrow(() -> new UsernameNotFoundException(
+                        "User with username " + username + " not found"));
+
+        if (!target.getRoles().contains(AccessRole.ADMIN)) {
+            return target;
+        }
+        long adminCount = users.stream()
+                .filter(user -> user.getRoles().contains(AccessRole.ADMIN)).count();
+        if (adminCount <= 1) {
+            throw new LastAdminException("Cannot remove the last admin");
+        }
+        if (!target.removeRole(AccessRole.ADMIN)) {
+            return target;
+        }
+        return userRepository.save(target);
     }
 }
