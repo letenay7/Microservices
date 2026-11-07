@@ -21,7 +21,7 @@ public class Order {
     private String username; // Captured from X-Auth-Username header
 
     @OneToMany(cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "order_id")
+    @JoinColumn(name = "order_id", referencedColumnName = "id")
     private List<OrderItem> items;
 
     @Column(nullable = false)

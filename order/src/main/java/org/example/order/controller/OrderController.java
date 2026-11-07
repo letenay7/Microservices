@@ -26,37 +26,31 @@ public class OrderController {
             @RequestBody OrderRequestDTO request,
             @RequestHeader("X-Auth-Username") String username) {
 
-        Order createdOrder = orderService.createOrder(request, username);
-        OrderResponseDTO response = new OrderResponseDTO(createdOrder.getId(),
-                createdOrder.getUsername(), createdOrder.getItems(),
-                createdOrder.getTotalPrice(), System.currentTimeMillis());
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        OrderResponseDTO createdOrder = orderService.createOrder(request, username);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdOrder);
     }
 
     @GetMapping
-    public ResponseEntity<List<Order>> getAllOrders() {
-        List<Order> orders = orderService.getAllOrders();
-        return ResponseEntity.ok(orders);
-    }
-
-    @GetMapping("/id")
-    public ResponseEntity<OrderResponseDTO> getOrderById(@PathVariable Long id) {
-        Order order = orderService.getOrderById(id);
-        OrderResponseDTO response = new OrderResponseDTO(order.getId(), order.getUsername(),
-                order.getItems(), order.getTotalPrice(), System.currentTimeMillis());
-        return ResponseEntity.ok(response);
-    }
-
-    @GetMapping(params = "username")
-    public ResponseEntity<List<Order>> getAllOrdersByUsername(
+    public ResponseEntity<List<OrderResponseDTO>> getOrders(
             @RequestHeader("X-Auth-Username") String username,
-            @RequestParam("username") String paramUsername) {
-        if (!username.equals(paramUsername)) {
+            @RequestParam(value = "username", required = false) String paramUsername) {
+
+        if (paramUsername != null && !paramUsername.equals(username)) {
             throw new CannotModifyOrderException("Invalid username");
         }
-        List<Order> orders = orderService.getAllOrdersByUsername(paramUsername);
-        return ResponseEntity.ok(orders);
+        return ResponseEntity.ok(orderService.getAllOrdersByUsername(username));
     }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<OrderResponseDTO> getOrderById(
+            @PathVariable Long id,
+            @RequestHeader("X-Auth-Username") String username) {
+
+        Order order = orderService.getOrderByIdForUser(id, username);
+        return ResponseEntity.ok(new OrderResponseDTO(order.getId(), order.getUsername(),
+                order.getItems(), order.getTotalPrice(), System.currentTimeMillis()));
+    }
+
 
     @PutMapping("/{id}")
     public ResponseEntity<OrderResponseDTO> updateOrder(@PathVariable Long id,

@@ -1,6 +1,9 @@
 package org.example.order.controller;
 
+import org.example.order.event.OrderCreatedEvent;
 import org.example.order.repository.OrderRepository;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import tools.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import org.example.order.dto.OrderItemDTO;
@@ -32,6 +35,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -46,6 +50,9 @@ class OrderControllerIntegrationTests {
 
     @Autowired
     private OrderRepository orderRepository;
+
+    @MockitoBean
+    private KafkaTemplate<String, OrderCreatedEvent> kafkaTemplate;
 
     private static WireMockServer wireMockServer;
     private static String USER_ID;
@@ -127,6 +134,7 @@ class OrderControllerIntegrationTests {
         // MockMvc GET request
         mockMvc.perform(get("/api/orders")
                         .header("X-Auth-Username", USER_ID))
+                .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
                 .andExpect(jsonPath("$[0].username").value(USER_ID));
@@ -237,6 +245,7 @@ class OrderControllerIntegrationTests {
         mockMvc.perform(get("/api/orders")
                         .param("username", USER_ID)
                         .header("X-Auth-Username", USER_ID))
+                .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)));
     }
@@ -263,5 +272,31 @@ class OrderControllerIntegrationTests {
                         .param("username", "wrongParam")
                         .header("X-Auth-Username", USER_ID))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void getOrders_doesNotLeakOtherUsersOrders() throws Exception {
+        String otherUser = generateRandomUUID();
+
+        for (String user : List.of(USER_ID, otherUser)) {
+            wireMockServer.stubFor(com.github.tomakehurst.wiremock.client.WireMock.get(urlEqualTo("/api/products/1"))
+                    .withHeader("X-Auth-Username", equalTo(user))
+                    .willReturn(aResponse()
+                            .withStatus(200)
+                            .withHeader("Content-Type", MediaType.APPLICATION_JSON_VALUE)
+                            .withBody("{\"productId\": 1, \"name\": \"Laptop\", \"price\": 1200.00}")));
+
+            mockMvc.perform(post("/api/orders")
+                            .header("X-Auth-Username", user)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(
+                                    new OrderRequestDTO(List.of(new OrderItemDTO(1L, 1))))))
+                    .andExpect(status().isCreated());
+        }
+
+        mockMvc.perform(get("/api/orders").header("X-Auth-Username", USER_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$[0].username").value(USER_ID));
     }
 }

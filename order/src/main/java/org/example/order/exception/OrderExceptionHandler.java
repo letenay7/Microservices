@@ -13,15 +13,33 @@ public class OrderExceptionHandler  {
     public ResponseEntity<ProductErrorResponseDTO> handleProductNotFoundException(
             ProductNotFoundException ex) {
         ProductErrorResponseDTO errorResponseDTO = new ProductErrorResponseDTO(
-                HttpStatus.NOT_FOUND.value(), ex.getMessage(), System.currentTimeMillis());
+                HttpStatus.NOT_FOUND.value(),
+                ex.getMessage(),
+                System.currentTimeMillis()
+        );
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponseDTO);
     }
+
+    @ExceptionHandler (OrderNotFoundException.class)
+    public ResponseEntity<OrderErrorResponseDTO> handleOrderNotFoundException(
+            OrderNotFoundException ex) {
+        OrderErrorResponseDTO errorResponseDTO = new OrderErrorResponseDTO(
+                HttpStatus.NOT_FOUND.value(),
+                ex.getMessage(),
+                System.currentTimeMillis()
+        );
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponseDTO);
+    }
+
 
     @ExceptionHandler(ProductServiceException.class)
     public ResponseEntity<ProductErrorResponseDTO> handleProductServiceException(
             ProductServiceException ex) {
         ProductErrorResponseDTO errorResponseDTO = new ProductErrorResponseDTO(
-                HttpStatus.INTERNAL_SERVER_ERROR.value(), ex.getMessage(), System.currentTimeMillis());
+                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                ex.getMessage(),
+                System.currentTimeMillis()
+        );
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponseDTO);
     }
 
@@ -29,7 +47,10 @@ public class OrderExceptionHandler  {
     public ResponseEntity<OrderErrorResponseDTO> handleCannotModifyOrderException(
             CannotModifyOrderException ex) {
         OrderErrorResponseDTO errorResponseDTO = new OrderErrorResponseDTO(
-                HttpStatus.CONFLICT.value(), ex.getMessage(), System.currentTimeMillis());
+                HttpStatus.CONFLICT.value(),
+                ex.getMessage(),
+                System.currentTimeMillis()
+        );
         return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponseDTO);
     }
 }
