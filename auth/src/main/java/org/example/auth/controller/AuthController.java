@@ -1,6 +1,8 @@
 package org.example.auth.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.example.auth.audit.LoginAudit;
 import org.example.auth.dto.*;
 import org.example.auth.entity.RefreshToken;
 import org.example.auth.entity.User;
@@ -9,6 +11,7 @@ import org.example.auth.service.RefreshTokenService;
 import org.example.auth.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -37,12 +40,29 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponseDTO> loginUser(
-            @Valid @RequestBody LoginRequestDTO loginRequestDTO) {
-        User user = userService.login(loginRequestDTO);
+    public ResponseEntity<AuthResponseDTO> loginUser(@Valid @RequestBody LoginRequestDTO loginRequestDTO,
+                                                     HttpServletRequest request) {
+        User user;
+        try {
+            user = userService.login(loginRequestDTO);
+        } catch (BadCredentialsException e) {
+            // The reason stays coarse: UserService deliberately throws one exception for "unknown user"
+            // and "wrong password", so the log cannot tell them apart either.
+            LoginAudit.loginFailed(loginRequestDTO.username(), request.getRemoteAddr(), "bad_credentials");
+            throw e;
+        }
+        LoginAudit.loginSucceeded(user.getUsername(), request.getRemoteAddr());
         String accessToken = jwtService.generateToken(user.getUsername());
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(user.getUsername());
         return ResponseEntity.ok(new AuthResponseDTO(accessToken, refreshToken.getToken()));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<MessageResponseDTO> logoutCurrentToken(
+            @Valid @RequestBody TokenRefreshRequestDTO tokenRefreshRequestDTO) {
+        String incomingToken = tokenRefreshRequestDTO.refreshToken();
+        refreshTokenService.logoutRefreshToken(incomingToken);
+        return ResponseEntity.ok(new MessageResponseDTO(incomingToken));
     }
 
     @PostMapping("/refresh-token")
@@ -53,13 +73,5 @@ public class AuthController {
         User tokUser = verifiedToken.getUser();
         String newToken = jwtService.generateToken(tokUser.getUsername());
         return ResponseEntity.ok(new AuthResponseDTO(newToken, incomingToken));
-    }
-
-    @PostMapping("/logout")
-    public ResponseEntity<MessageResponseDTO> logoutCurrentToken(
-            @Valid @RequestBody TokenRefreshRequestDTO tokenRefreshRequestDTO) {
-        String incomingToken = tokenRefreshRequestDTO.refreshToken();
-        refreshTokenService.logoutRefreshToken(incomingToken);
-        return ResponseEntity.ok(new MessageResponseDTO(incomingToken));
     }
 }
