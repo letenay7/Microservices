@@ -54,7 +54,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 )
 @DirtiesContext
 @ActiveProfiles("test")
-class OrderKafkaIntegrationTest {
+class OrderKafkaIntegrationTests {
 
     private static final String USER = "kafka-test-user";
 

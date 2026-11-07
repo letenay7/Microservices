@@ -44,7 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Business logic is covered in OrderServiceTest; end-to-end flow in OrderControllerIntegrationTests.
  */
 @WebMvcTest(OrderController.class)
-class OrderControllerTest {
+class OrderControllerTests {
 
     private static final String HEADER = "X-Auth-Username";
     private static final String USER = "alice";
