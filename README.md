@@ -6,7 +6,8 @@ A modern, scalable microservices-base backend built with **Java 21**, **Spring B
 
 * **Product (`product`)**: Handles product catalog CRUD operations, backed by **PostgreSQL** for persistent storage and **Redis** for high-performance caching.
 * **Auth (`auth`)**: Identity management, registration, and JWT token issuance.
-* **Api gateway (`api-gateway`)**: Routing, Global JWT Filter, Rate limiter
+* **Api gateway (`api-gateway`)**: Routing, Global JWT Filter, Rate limiter.
+* **Order (`order`)** Feign client, asynchronous messaging (Kafka), Transaction management. 
 
 ---
 
@@ -17,7 +18,7 @@ A modern, scalable microservices-base backend built with **Java 21**, **Spring B
 * **Build Tool**: Apache Maven (Multi-module project)
 * **Database**: PostgreSQL 15
 * **Cache**: Redis 7 
-* **Testing**: JUnit 5, MockMvc, Testcontainers (PostgreSQL & Redis)
+* **Testing**: JUnit 5, MockMvc, Testcontainers (PostgreSQL & Redis, Kafka)
 * **Containerization**: Docker & Docker Compose
 
 ---
