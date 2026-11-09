@@ -1,39 +1,42 @@
 package org.example.auth.controller;
 
-import org.example.auth.dto.*;
+import org.example.auth.dto.LoginRequestDTO;
+import org.example.auth.dto.RegisterRequestDTO;
+import org.example.auth.dto.TokenRefreshRequestDTO;
 import org.example.auth.entity.RefreshToken;
 import org.example.auth.entity.User;
-import org.example.auth.repository.RefreshTokenRepository;
+import org.example.auth.exception.TokenNotFoundException;
+import org.example.auth.exception.UserAlreadyExistsException;
 import org.example.auth.repository.UserRepository;
 import org.example.auth.security.AccessRole;
 import org.example.auth.service.JwtService;
 import org.example.auth.service.RefreshTokenService;
+import org.example.auth.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MvcResult;
-import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.EnumSet;
-import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(AuthController.class) // Tests *only* the AuthController web layer
+@WebMvcTest(AuthController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class AuthControllerTests {
+
+    private static final long REFRESH_TOKEN_DURATION_MS = 604_800_000L;
 
     @Autowired
     private MockMvc mockMvc;
@@ -45,7 +48,7 @@ class AuthControllerTests {
     private UserRepository userRepository;
 
     @MockitoBean
-    private PasswordEncoder passwordEncoder;
+    private UserService userService;
 
     @MockitoBean
     private JwtService jwtService;
@@ -53,176 +56,139 @@ class AuthControllerTests {
     @MockitoBean
     private RefreshTokenService refreshTokenService;
 
-    @MockitoBean
-    private RefreshTokenRepository refreshTokenRepository;
-
-    private long tokenExpirationDuration = 604800000L;
-
-    private User mockUser;
-    private RefreshToken mockRefreshToken;
-
-    private User mockAdminUser;
-    private RefreshToken mockAdminRefreshToken;
-
+    private User user;
+    private RefreshToken userRefreshToken;
 
     @BeforeEach
     void setUp() {
-        mockUser = new User();
-        mockUser.setId(1L);
-        mockUser.setUsername("martin");
-        mockUser.setPassword("hashed_password_123");
-        mockUser.setRoles(EnumSet.of(AccessRole.USER));
+        user = new User();
+        user.setId(1L);
+        user.setUsername("martin");
+        user.setPassword("hashed_password_123");
+        user.setRoles(EnumSet.of(AccessRole.USER));
 
-        mockRefreshToken = new RefreshToken();
-        mockRefreshToken.setId(1L);
-        mockRefreshToken.setToken("mock-refresh-token-uuid");
-        mockRefreshToken.setExpiryDate(Instant.now().plusMillis(tokenExpirationDuration));
-        mockRefreshToken.setUser(mockUser);
-
-        mockAdminUser = new User();
-        mockAdminUser.setId(2L);
-        mockAdminUser.setUsername("admin");
-        mockAdminUser.setPassword("StrongPassword123");
-        mockAdminUser.setRoles(EnumSet.of(AccessRole.ADMIN, AccessRole.USER));
-
-        mockAdminRefreshToken = new RefreshToken();
-        mockAdminRefreshToken.setId(2L);
-        mockAdminRefreshToken.setToken("mock-refresh-token-admin-uuid");
-        mockAdminRefreshToken.setExpiryDate(Instant.now().plusMillis(tokenExpirationDuration));
-        mockAdminRefreshToken.setUser(mockAdminUser);
+        userRefreshToken = new RefreshToken();
+        userRefreshToken.setId(1L);
+        userRefreshToken.setToken("mock-refresh-token-uuid");
+        userRefreshToken.setExpiryDate(Instant.now().plusMillis(REFRESH_TOKEN_DURATION_MS));
+        userRefreshToken.setUser(user);
     }
 
     @Test
     void shouldRegisterUserSuccessfully() throws Exception {
         RegisterRequestDTO request = new RegisterRequestDTO("martin", "mySecurePassword123");
 
-        when(passwordEncoder.encode(anyString())).thenReturn("hashed_password_123");
-        when(userRepository.save(any(User.class))).thenReturn(mockUser);
+        when(userService.createUser(any(RegisterRequestDTO.class))).thenReturn(user);
         when(jwtService.generateToken("martin")).thenReturn("mock-access-token");
-
-        RefreshToken token = new RefreshToken();
-        token.setToken("mock-refresh-token-uuid");
-        when(refreshTokenService.createRefreshToken("martin")).thenReturn(token);
+        when(refreshTokenService.createRefreshToken("martin")).thenReturn(userRefreshToken);
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andDo(print())
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.accessToken").exists())
-                .andExpect(jsonPath("$.refreshToken").exists());
+                .andExpect(jsonPath("$.accessToken").value("mock-access-token"))
+                .andExpect(jsonPath("$.refreshToken").value("mock-refresh-token-uuid"));
     }
 
     @Test
     void shouldLoginUserSuccessfully() throws Exception {
         LoginRequestDTO request = new LoginRequestDTO("martin", "mySecurePassword123");
 
-        when(userRepository.findByUsername("martin")).thenReturn(Optional.of(mockUser));
-        when(passwordEncoder.matches("mySecurePassword123", "hashed_password_123")).thenReturn(true);
+        when(userService.login(any(LoginRequestDTO.class))).thenReturn(user);
         when(jwtService.generateToken("martin")).thenReturn("mock-access-token");
-
-        RefreshToken token = new RefreshToken();
-        token.setToken("mock-refresh-token-uuid");
-        when(refreshTokenService.createRefreshToken("martin")).thenReturn(token);
+        when(refreshTokenService.createRefreshToken("martin")).thenReturn(userRefreshToken);
 
         mockMvc.perform(post("/api/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").exists())
-                .andExpect(jsonPath("$.refreshToken").exists());
+                .andExpect(jsonPath("$.accessToken").value("mock-access-token"))
+                .andExpect(jsonPath("$.refreshToken").value("mock-refresh-token-uuid"));
     }
 
     @Test
     void shouldRefreshTokenSuccessfully() throws Exception {
-        when(userRepository.findByUsername("martin")).thenReturn(Optional.of(mockUser));
-        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
-        when(jwtService.generateToken("martin")).thenReturn("mock-access-token");
-        when(refreshTokenService.createRefreshToken("martin")).thenReturn(mockRefreshToken);
+        // No need to log in first: a refresh request only needs a token the controller can look up.
+        when(refreshTokenService.getRefreshToken("mock-refresh-token-uuid"))
+                .thenReturn(userRefreshToken);
+        when(refreshTokenService.refreshIncomingToken("mock-refresh-token-uuid"))
+                .thenReturn(userRefreshToken);
+        when(jwtService.generateToken("martin")).thenReturn("new-access-token");
 
-        when(refreshTokenRepository.findByToken("mock-refresh-token-uuid"))
-                .thenReturn(Optional.of(mockRefreshToken));
-        when(refreshTokenService.verifyExpiration(any(RefreshToken.class))).thenReturn(mockRefreshToken);
+        TokenRefreshRequestDTO refreshRequest = new TokenRefreshRequestDTO("mock-refresh-token-uuid");
 
-        LoginRequestDTO request = new LoginRequestDTO("martin", "mySecurePassword123");
-
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andReturn();
-
-        String responseBody = result.getResponse().getContentAsString();
-        AuthResponseDTO authResponse = objectMapper.readValue(responseBody, AuthResponseDTO.class);
-
-        TokenRefreshRequestDTO refreshRequest = new TokenRefreshRequestDTO(authResponse.refreshToken());
-
-        mockMvc.perform(post("/api/auth/refresh_token")
+        mockMvc.perform(post("/api/auth/refresh-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(refreshRequest)))
-                .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.accessToken").exists());
+                .andExpect(jsonPath("$.accessToken").value("new-access-token"))
+                .andExpect(jsonPath("$.refreshToken").value("mock-refresh-token-uuid"));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenRefreshTokenUnknown() throws Exception {
+        doThrow(new TokenNotFoundException("Token not found"))
+                .when(refreshTokenService).refreshIncomingToken("unknown-token");
+
+        mockMvc.perform(post("/api/auth/refresh-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new TokenRefreshRequestDTO("unknown-token"))))
+                .andExpect(status().isNotFound());
     }
 
     @Test
     void shouldLogoutUserSuccessfully() throws Exception {
-        when(userRepository.findByUsername("martin")).thenReturn(Optional.of(mockUser));
-        when(passwordEncoder.matches(anyString(), anyString())).thenReturn(true);
-        when(jwtService.generateToken("martin")).thenReturn("mock-access-token");
-        when(refreshTokenService.createRefreshToken("martin")).thenReturn(mockRefreshToken);
+        when(refreshTokenService.getRefreshToken("mock-refresh-token-uuid"))
+                .thenReturn(userRefreshToken);
 
-        when(refreshTokenRepository.findByToken("mock-refresh-token-uuid"))
-                .thenReturn(Optional.of(mockRefreshToken));
-        when(refreshTokenService.verifyExpiration(any(RefreshToken.class))).thenReturn(mockRefreshToken);
-        doNothing().when(refreshTokenRepository).deleteByToken("mock-refresh-token-uuid");
-
-        TokenRefreshRequestDTO refreshRequest = new TokenRefreshRequestDTO(
+        TokenRefreshRequestDTO logoutRequest = new TokenRefreshRequestDTO(
                 "mock-refresh-token-uuid");
 
         mockMvc.perform(post("/api/auth/logout")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(refreshRequest)))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(logoutRequest)))
                 .andExpect(status().isOk());
 
+        verify(refreshTokenService).logoutRefreshToken("mock-refresh-token-uuid");
     }
 
-    @Test
-    void shouldRejectNonAdminUser() throws Exception {
-        LoginRequestDTO request = new LoginRequestDTO("martin", "mySecurePassword123");
-
-        when(userRepository.findByUsername("martin")).thenReturn(Optional.of(mockUser));
-        when(passwordEncoder.matches("mySecurePassword123", "hashed_password_123"))
-                .thenReturn(true);
-        when(jwtService.generateToken("martin")).thenReturn("mock-access-token");
-
-        RefreshToken token = new RefreshToken();
-        token.setToken("mock-refresh-token-uuid");
-        when(refreshTokenService.createRefreshToken("martin")).thenReturn(token);
-
-        mockMvc.perform(post("/api/auth/admin")
-        .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-                .andDo(print())
-                .andExpect(status().isForbidden());
-    }
 
     @Test
-    void shouldAcceptAdminUser() throws Exception {
-        LoginRequestDTO request = new LoginRequestDTO("admin", "SupePassword123");
-        when(userRepository.findByUsername("admin")).thenReturn(Optional.of(mockAdminUser));
-        when(passwordEncoder.matches("SupePassword123", "StrongPassword123"))
-                .thenReturn(true);
-        when(jwtService.generateToken("admin")).thenReturn("mock-access-token");
-        RefreshToken token = new RefreshToken();
-        token.setToken("mock-refresh-token-uuid");
-        when(refreshTokenService.createRefreshToken("admin")).thenReturn(token);
-        mockMvc.perform(post("/api/auth/admin")
+    void shouldReturnConflictWhenUserAlreadyExists() throws Exception {
+        RegisterRequestDTO request = new RegisterRequestDTO("martin", "mySecurePassword123");
+
+        when(userService.createUser(any(RegisterRequestDTO.class)))
+                .thenThrow(new UserAlreadyExistsException("User with username martin already exists"));
+
+        mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andDo(print())
-                .andExpect(status().isOk());
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    void shouldReturnUnauthorizedOnBadCredentials() throws Exception {
+        LoginRequestDTO request = new LoginRequestDTO("martin", "wrong-password");
+
+        when(userService.login(any(LoginRequestDTO.class)))
+                .thenThrow(new BadCredentialsException("Invalid username or password"));
+
+        mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenLoggingOutWithUnknownToken() throws Exception {
+        doThrow(new TokenNotFoundException("Token not found"))
+                .when(refreshTokenService).logoutRefreshToken("unknown-token");
+
+        mockMvc.perform(post("/api/auth/logout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new TokenRefreshRequestDTO("unknown-token"))))
+                .andExpect(status().isNotFound());
     }
 }

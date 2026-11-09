@@ -1,4 +1,6 @@
 package org.example.auth.dto;
 
-public record TokenRefreshRequestDTO(String refreshToken) {
+import jakarta.validation.constraints.NotBlank;
+
+public record TokenRefreshRequestDTO(@NotBlank String refreshToken) {
 }

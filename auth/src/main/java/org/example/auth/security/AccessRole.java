@@ -6,14 +6,12 @@ import lombok.Getter;
 public enum AccessRole {
     ADMIN("ADMIN"),
     USER("USER");
-    private String value;
+    private final String value;
     AccessRole(String value) {
         this.value = value;
     }
 
-    @Override
-    public String toString() {
+    public String getDisplayName() {
         return name().charAt(0) + name().substring(1).toLowerCase();
-
     }
 }

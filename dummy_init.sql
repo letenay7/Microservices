@@ -1,4 +1,4 @@
--- Create databases if they do not exist, product, auth, test
+-- Create databases if they do not exist, product, auth, order
 -- (each microservice has its own production and test DB)
 SELECT 'CREATE DATABASE your_value'
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'your_value')\gexec

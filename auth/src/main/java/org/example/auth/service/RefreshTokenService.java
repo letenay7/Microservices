@@ -2,6 +2,8 @@ package org.example.auth.service;
 
 import org.example.auth.entity.RefreshToken;
 import org.example.auth.entity.User;
+import org.example.auth.exception.TokenExpiredException;
+import org.example.auth.exception.TokenNotFoundException;
 import org.example.auth.repository.RefreshTokenRepository;
 import org.example.auth.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,28 +40,46 @@ public class RefreshTokenService {
         return refreshTokenRepository.save(refreshToken);
     }
 
+    public RefreshToken getRefreshToken(String token) {
+       return  refreshTokenRepository.findByToken(token)
+               .orElseThrow(() -> new TokenNotFoundException("Token not found: " + token));
+    }
+
+    public boolean isTokenExpired(RefreshToken token) {
+        return token.getExpiryDate().isBefore(Instant.now());
+    }
+
+    @Transactional(noRollbackFor = TokenExpiredException.class)
     public RefreshToken verifyExpiration(RefreshToken token) {
-        if (token.getExpiryDate().isAfter(Instant.now())) {
+        if (isTokenExpired(token)) {
             refreshTokenRepository.delete(token);
-            throw new RuntimeException("Refresh token expired");
+            throw new TokenExpiredException("Refresh token expired");
         }
         return token;
     }
 
-    @Transactional
-    public void deleteByToken(String token) {
-        refreshTokenRepository.deleteByToken(token);
+    @Transactional(noRollbackFor = TokenExpiredException.class)
+    public RefreshToken refreshIncomingToken(String incomingToken) {
+        return verifyExpiration(getRefreshToken(incomingToken));
     }
 
     @Transactional
-    public void deleteExpired() {
-        refreshTokenRepository.deleteByExpiryDateBefore(Instant.now());
+    public void logoutRefreshToken(String incomingToken) {
+        if (refreshTokenRepository.findByToken(incomingToken).isEmpty()) {
+            throw new TokenNotFoundException("Refresh token not found");
+        }
+        refreshTokenRepository.deleteByToken(incomingToken);
+    }
+
+    /** Logs the user out everywhere, e.g. after a password change. */
+    @Transactional
+    public void revokeAllTokens(String username) {
+        refreshTokenRepository.deleteByUserUsername(username);
     }
 
     @Scheduled(cron = "0 0 0 * * *")
     @Transactional
     public void clearExpiredTokens() {
         refreshTokenRepository.deleteByExpiryDateBefore(Instant.now());
-
     }
 }

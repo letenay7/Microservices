@@ -1,7 +1,7 @@
 package org.example.product.controller;
 
-import org.example.product.domain.Product;
-import org.example.product.dto.ProductRequest;
+import org.example.product.entity.Product;
+import org.example.product.dto.ProductRequestDTO;
 import org.example.product.service.ProductService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -25,57 +25,40 @@ public class ProductController {
     @GetMapping("/{id}")
     public ResponseEntity<Product> getProductById(@PathVariable Long id,
                                                   @RequestHeader(
-                                                          value = "X-Auth-Username", defaultValue = "empty")
-                                                  String username) {
+                                                          value = "X-Auth-Username",
+                                                          defaultValue = "empty") String username) {
         return ResponseEntity.ok(productService.findById(id));
     }
 
     @PostMapping
-    public ResponseEntity<Product> createProduct(@RequestBody ProductRequest productRequest,
+    public ResponseEntity<Product> createProduct(@RequestBody ProductRequestDTO productRequestDTO,
                                                  @RequestHeader("X-Auth-Username") String username) {
-         return ResponseEntity.status(HttpStatus.CREATED)
-                 .body(productService.saveProduct(productRequest, username));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(productService.saveProduct(productRequestDTO, username));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteProductById(@PathVariable Long id,
                                                   @RequestHeader(value = "X-Auth-Username",
-                                                          defaultValue = "empty" ) String username) {
-        try {
-            productService.deleteProduct(id);
-            return ResponseEntity.noContent().build();
-        }
-        catch (Exception e) {
-            return ResponseEntity.noContent().build();
-        }
+                                                          defaultValue = "empty") String username) {
+        productService.deleteProduct(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Product> updateProductById(@PathVariable Long id,
-                                                     @RequestBody ProductRequest productRequest,
+                                                     @RequestBody ProductRequestDTO productRequestDTO,
                                                      @RequestHeader("X-Auth-Username") String username) {
-        try {
-             Product updated = productService.updateProduct(id, productRequest, username);
-            return ResponseEntity.ok(updated);
-        }
-        catch (Exception e) {
-            return ResponseEntity.noContent().build();
-        }
+       Product updatedProduct = productService.updateProduct(id, productRequestDTO, username);
+       return ResponseEntity.ok(updatedProduct);
     }
 
     @PutMapping("update-quantity/{id}")
     public ResponseEntity<Product> updateProductQuantity(@PathVariable Long id,
-                                                         @RequestBody ProductRequest productRequest,
-                                                        @RequestHeader("X-Auth-Username") String username) {
-        try {
-            Product toUpdate = productService.findById(id);
-            if (toUpdate != null) {
-                 Product updated = productService.updateProductQuantity(toUpdate, productRequest, username);
-                return ResponseEntity.ok(updated);
-            }
-            return ResponseEntity.notFound().build();
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+                                                         @RequestBody ProductRequestDTO productRequestDTO,
+                                                         @RequestHeader("X-Auth-Username") String username) {
+        Product toUpdate = productService.findById(id);
+        Product updated = productService.updateProductQuantity(toUpdate, productRequestDTO, username);
+        return ResponseEntity.ok(updated);
     }
 }

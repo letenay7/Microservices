@@ -1,35 +1,29 @@
-package org.example.product.domain;
+package org.example.order.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.io.Serializable;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "products")
-@Getter
-@Setter
+@Table(name = "order_items")
 @NoArgsConstructor
 @AllArgsConstructor
+@Getter
+@Setter
 @Builder
-public class Product implements Serializable {
+public class OrderItem {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)
-    private String name;
+    private Long productId;
 
-    @Column
-    private String description;
+    @Column(nullable = false)
+    private Integer quantity;
 
     @Column(nullable = false)
     private BigDecimal price;
 
-    @Column
-    private Integer quantity;
-
-    @Column
-    private String createdBy;
 }
