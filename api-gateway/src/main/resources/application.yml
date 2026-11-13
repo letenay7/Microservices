@@ -8,10 +8,27 @@ spring:
       server:
         webflux:
           routes:
+            - id: auth-credentials-route
+              uri: ${AUTH_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/auth/login,/api/auth/register
+              filters:
+                - name: RequestRateLimiter
+                  args:
+                    redis-rate-limiter.replenishRate: 1
+                    redis-rate-limiter.burstCapacity: 300
+                    redis-rate-limiter.requestedTokens: 60
+                    key-resolver: "#{@ipKeyResolver}"
             - id: auth-service-route
               uri: ${AUTH_SERVICE_URL:http://localhost:8082}
               predicates:
                 - Path=/api/auth/**
+            # Authenticated endpoints of the auth service (password change, admin role management).
+            # The gateway requires a valid JWT here; the auth service still enforces the roles itself.
+            - id: auth-service-protected-route
+              uri: ${AUTH_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/user/**,/api/admin/**
             - id: product-service-route
               uri: ${PRODUCT_SERVICE_URL:http://localhost:8081}
               predicates:
@@ -25,7 +42,7 @@ spring:
             - id: order-service-route
               uri: ${ORDER_SERVICE_URL:http://localhost:8083}
               predicates:
-                  - Path=/api/orders/**
+                - Path=/api/orders/**
   data:
     redis:
       host: ${REDIS_HOST}

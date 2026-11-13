@@ -1,6 +1,7 @@
 package org.example.apigateway;
 
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.http.Fault;
 import com.github.tomakehurst.wiremock.junit5.WireMockExtension;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
@@ -50,7 +51,7 @@ class GatewayRouteTests {
     static {
         redis.start();
     }
-    static String USER_ID;
+    private String USER_ID;
 
     @Autowired
     private WebTestClient webTestClient;
@@ -138,24 +139,14 @@ class GatewayRouteTests {
     }
     @Test
     void whenBurstExceeded_thenReturns429() {
-        productService.stubFor(get(urlEqualTo("/api/products/1"))
-                .willReturn(aResponse().withStatus(200)
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("{}")));
-
+        stubProduct();
         String token = generateValidToken(USER_ID);
 
-        List<Integer> statuses = IntStream.range(0, 40)
-                .mapToObj(i -> webTestClient.get()
-                        .uri("/api/products/1")
-                        .header("Authorization", "Bearer " + token)
-                        .exchange()
-                        .returnResult(String.class)
-                        .getStatus()
-                        .value())
-                .toList();
+        // Concurrent on purpose: 40 sequential requests could be slow enough on a busy machine
+        // for the bucket (10 tokens/s) to refill, and the test would never see a 429.
+        List<Integer> statuses = parallelProductStatuses(100, i -> token, i -> null);
 
-        assertThat(statuses.getFirst()).isEqualTo(200);
+        assertThat(statuses).contains(200);
         assertThat(statuses).contains(429);
     }
 
@@ -266,9 +257,7 @@ class GatewayRouteTests {
                 .willReturn(aResponse()
                         .withStatus(201)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("{\"id\":1,\"username\":" +
-                                USER_ID +
-                                ",\"totalPrice\":1200.00}")));
+                        .withBody("{\"id\":1,\"username\":\"" + USER_ID + "\",\"totalPrice\":1200.00}")));
 
         String token = generateValidToken(USER_ID);
 
@@ -296,9 +285,7 @@ class GatewayRouteTests {
                 .willReturn(aResponse()
                         .withStatus(200)
                         .withHeader("Content-Type", "application/json")
-                        .withBody("[{\"id\":1,\"username\":" +
-                                USER_ID +
-                                ",\"totalPrice\":500.00}]")));
+                        .withBody("[{\"id\":1,\"username\":\"" + USER_ID + "\",\"totalPrice\":500.00}]")));
 
         String token = generateValidToken(USER_ID);
 
@@ -331,5 +318,226 @@ class GatewayRouteTests {
 
         orderService.verify(deleteRequestedFor(urlEqualTo("/api/orders/5"))
                 .withHeader("X-Auth-Username", equalTo(USER_ID)));
+    }
+
+    /**
+     * Fires the requests concurrently, so the outcome does not depend on how fast a single request is
+     * (sequential requests on a slow machine would let the 10 tokens/s bucket refill between calls).
+     * The response body is consumed, so no connection is left hanging.
+     */
+    private List<Integer> parallelProductStatuses(int requests,
+                                                  java.util.function.IntFunction<String> token,
+                                                  java.util.function.IntFunction<String> spoofedUsername) {
+        return IntStream.range(0, requests).parallel()
+                .mapToObj(i -> webTestClient.get()
+                        .uri("/api/products/1")
+                        .headers(headers -> {
+                            headers.setBearerAuth(token.apply(i));
+                            String spoofed = spoofedUsername.apply(i);
+                            if (spoofed != null) {
+                                headers.set("X-Auth-Username", spoofed);
+                            }
+                        })
+                        .exchange()
+                        .expectBody()
+                        .returnResult()
+                        .getStatus()
+                        .value())
+                .toList();
+    }
+
+    private void stubProduct() {
+        productService.stubFor(get(urlEqualTo("/api/products/1"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/json")
+                        .withBody("{}")));
+    }
+
+    // ---------- identity header ----------
+
+    @Test
+    void whenClientSpoofsIdentityHeader_thenDownstreamOnlyReceivesTheTokenSubject() {
+        stubProduct();
+
+        webTestClient.get()
+                .uri("/api/products/1")
+                .header("Authorization", "Bearer " + generateValidToken(USER_ID))
+                .header("X-Auth-Username", "admin")
+                .exchange()
+                .expectStatus().isOk();
+
+        List<String> received = productService.getAllServeEvents().getFirst()
+                .getRequest().getHeaders().getHeader("X-Auth-Username").values();
+        assertThat(received).containsExactly(USER_ID);
+    }
+
+    @Test
+    void whenClientSpoofsIdentityHeaderOnPublicRoute_thenItIsNotForwarded() {
+        authService.stubFor(post(urlEqualTo("/api/auth/login"))
+                .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json").withBody("{}")));
+
+        webTestClient.post()
+                .uri("/api/auth/login")
+                .header("X-Auth-Username", "admin")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{}")
+                .exchange()
+                .expectStatus().isOk();
+
+        authService.verify(postRequestedFor(urlEqualTo("/api/auth/login"))
+                .withoutHeader("X-Auth-Username"));
+    }
+
+    // ---------- the auth service's authenticated endpoints must be reachable through the gateway ----------
+
+    @Test
+    void whenPasswordChangeCalledWithoutToken_thenReturnsUnauthorized() {
+        webTestClient.patch()
+                .uri("/api/user/password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{}")
+                .exchange()
+                .expectStatus().isUnauthorized();
+
+        assertThat(authService.getAllServeEvents()).isEmpty();
+    }
+
+    @Test
+    void whenPasswordChangeCalledWithToken_thenProxiedWithAuthorizationAndIdentityHeaders() {
+        authService.stubFor(patch(urlEqualTo("/api/user/password"))
+                .willReturn(aResponse().withStatus(204)));
+        String token = generateValidToken(USER_ID);
+
+        webTestClient.patch()
+                .uri("/api/user/password")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{\"currentPassword\":\"oldPassword123\",\"newPassword\":\"newPassword456\"}")
+                .exchange()
+                .expectStatus().isNoContent();
+
+        // the auth service validates the token itself, so Authorization must arrive untouched
+        authService.verify(patchRequestedFor(urlEqualTo("/api/user/password"))
+                .withHeader("Authorization", equalTo("Bearer " + token))
+                .withHeader("X-Auth-Username", equalTo(USER_ID)));
+    }
+
+    @Test
+    void whenAdminEndpointsCalledWithToken_thenProxiedToAuthService() {
+        authService.stubFor(put(urlEqualTo("/api/admin/users/martin/roles/admin"))
+                .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json").withBody("{}")));
+        authService.stubFor(delete(urlEqualTo("/api/admin/users/martin/roles/admin"))
+                .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json").withBody("{}")));
+        String token = generateValidToken(USER_ID);
+
+        webTestClient.put().uri("/api/admin/users/martin/roles/admin")
+                .header("Authorization", "Bearer " + token)
+                .exchange().expectStatus().isOk();
+        webTestClient.delete().uri("/api/admin/users/martin/roles/admin")
+                .header("Authorization", "Bearer " + token)
+                .exchange().expectStatus().isOk();
+
+        authService.verify(putRequestedFor(urlEqualTo("/api/admin/users/martin/roles/admin")));
+        authService.verify(deleteRequestedFor(urlEqualTo("/api/admin/users/martin/roles/admin")));
+    }
+
+    @Test
+    void whenAdminEndpointCalledWithoutToken_thenReturnsUnauthorized() {
+        webTestClient.put()
+                .uri("/api/admin/users/martin/roles/admin")
+                .exchange()
+                .expectStatus().isUnauthorized();
+
+        assertThat(authService.getAllServeEvents()).isEmpty();
+    }
+
+    @Test
+    void whenNoRouteMatches_thenReturnsNotFoundAndNothingIsForwarded() {
+        webTestClient.get()
+                .uri("/api/unknown/thing")
+                .header("Authorization", "Bearer " + generateValidToken(USER_ID))
+                .exchange()
+                .expectStatus().isNotFound();
+
+        assertThat(authService.getAllServeEvents()).isEmpty();
+        assertThat(productService.getAllServeEvents()).isEmpty();
+        assertThat(orderService.getAllServeEvents()).isEmpty();
+    }
+
+    // ---------- rate limiting ----------
+
+    @Test
+    void rateLimitHeadersShouldAdvertiseTheConfiguredLimits() {
+        stubProduct();
+
+        webTestClient.get()
+                .uri("/api/products/1")
+                .header("Authorization", "Bearer " + generateValidToken(USER_ID))
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().valueEquals("X-RateLimit-Burst-Capacity", "20")
+                .expectHeader().valueEquals("X-RateLimit-Replenish-Rate", "10");
+    }
+
+    @Test
+    void whenOneUserIsRateLimited_thenAnotherUserIsStillServed() {
+        stubProduct();
+        String heavyUser = generateValidToken(USER_ID);
+
+        List<Integer> heavyStatuses = parallelProductStatuses(100, i -> heavyUser, i -> null);
+        assertThat(heavyStatuses).contains(429);
+
+        webTestClient.get()
+                .uri("/api/products/1")
+                .header("Authorization", "Bearer " + generateValidToken(generateRandomUUID()))
+                .exchange()
+                .expectStatus().isOk();
+    }
+
+    @Test
+    void whenClientVariesTheSpoofedIdentityHeader_thenRateLimitStillApplies() {
+        // the limiter keys on the identity header; the filter overwrites it, so spoofing cannot dodge the limit
+        stubProduct();
+        String token = generateValidToken(USER_ID);
+
+        List<Integer> statuses = parallelProductStatuses(100, i -> token, i -> "spoofed-" + i);
+
+        assertThat(statuses).contains(429);
+    }
+
+    @Test
+    void loginShouldBeRateLimitedPerClientIp() {
+        authService.stubFor(post(urlEqualTo("/api/auth/login"))
+                .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json").withBody("{}")));
+
+        List<Integer> statuses = IntStream.range(0, 8)
+                .mapToObj(i -> webTestClient.post()
+                        .uri("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue("{\"username\":\"martin\",\"password\":\"wrong\"}")
+                        .exchange()
+                        .expectBody()
+                        .returnResult()
+                        .getStatus()
+                        .value())
+                .toList();
+
+        // burst of 5, then roughly one per minute
+        assertThat(statuses.subList(0, 5)).containsOnly(200);
+        assertThat(statuses.get(5)).isEqualTo(429);
+    }
+
+    // ---------- downstream failure ----------
+
+    @Test
+    void whenDownstreamResetsTheConnection_thenGatewayReturnsServerError() {
+        productService.stubFor(get(urlEqualTo("/api/products/1"))
+                .willReturn(aResponse().withFault(Fault.EMPTY_RESPONSE)));
+
+        webTestClient.get()
+                .uri("/api/products/1")
+                .header("Authorization", "Bearer " + generateValidToken(USER_ID))
+                .exchange()
+                .expectStatus().is5xxServerError();
     }
 }

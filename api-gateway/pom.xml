@@ -133,11 +133,10 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
                 <configuration>
-                    <systemPropertyVariables>
-                       <JWT_SECRET>${JWT_SECRET}</JWT_SECRET>
-                        <REDIS_HOST>${REDIS_HOST}</REDIS_HOST>
-                        <REDIS_PORT>${REDIS_PORT}</REDIS_PORT>
-                    </systemPropertyVariables>
+                    <argLine>
+                        -javaagent:${settings.localRepository}/org/mockito/mockito-core/${mockito.version}/mockito-core-${mockito.version}.jar
+                        -Xshare:off
+                    </argLine>
                 </configuration>
             </plugin>
         </plugins>
