@@ -9,7 +9,6 @@ import org.example.order.dto.ProductDTO;
 import org.example.order.entity.Order;
 import org.example.order.entity.OrderItem;
 import org.example.order.event.OrderCreatedEvent;
-import org.example.order.exception.CannotModifyOrderException;
 import org.example.order.exception.OrderNotFoundException;
 import org.example.order.messaging.OrderEventProducer;
 import org.example.order.repository.OrderRepository;
@@ -37,7 +36,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class OrderServiceTest {
+class OrderServiceTests {
 
     private static final String USER = "alice";
 
@@ -70,7 +69,7 @@ class OrderServiceTest {
         return item;
     }
 
-    private static Order order(Long id, String username, OrderItem... items) {
+    private static Order order(Long id , String username, OrderItem... items) {
         Order order = new Order();
         ReflectionTestUtils.setField(order, "id", id); // avoids depending on a setId()
         order.setUsername(username);
@@ -94,7 +93,7 @@ class OrderServiceTest {
 
         assertThat(result.totalPrice()).isEqualByComparingTo("2400.00");
         assertThat(result.orderItems()).hasSize(1);
-        OrderItem created = result.orderItems().get(0);
+        OrderItem created = result.orderItems().getFirst();
         assertThat(created.getProductId()).isEqualTo(1L);
         assertThat(created.getQuantity()).isEqualTo(2);
         assertThat(created.getPrice()).isEqualByComparingTo("1200.00");
@@ -196,16 +195,17 @@ class OrderServiceTest {
 
     @Test
     void updateOrder_replacesItemsAndTotal() {
-        Order existing = order(1L, USER, item(1, 1, "1200.00"));
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(existing));
-        when(productClient.getProductById(1L, USER)).thenReturn(product(1, "1200.00"));
+        Order existing = order(2L, USER, item(2, 1, "1200.00"));
+        when(orderRepository.findByIdWithItems(2L)).thenReturn(Optional.of(existing));
+        when(productClient.getProductById(2L, USER)).thenReturn(product(2, "1200.00"));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Order result = orderService.updateOrder(1L, USER, request(new OrderItemDTO(1L, 3)));
+        Order result = orderService.updateOrder(2L, USER,
+                request(new OrderItemDTO(2L, 3)));
 
         assertThat(result.getTotalPrice()).isEqualByComparingTo("3600.00");
         assertThat(result.getItems()).hasSize(1);
-        assertThat(result.getItems().get(0).getQuantity()).isEqualTo(3);
+        assertThat(result.getItems().getFirst().getQuantity()).isEqualTo(3);
         verify(orderRepository).save(existing);
     }
 
@@ -221,35 +221,38 @@ class OrderServiceTest {
 
     @Test
     void updateOrder_whenDifferentUser_throwsAndDoesNothing() {
-        Order existing = order(1L, "bob", item(1, 1, "10.00"));
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(existing));
+        Order existing = order(3L, "bob", item(1, 1, "10.00"));
+        when(orderRepository.findByIdWithItems(3L)).thenReturn(Optional.of(existing));
 
-        assertThatThrownBy(() -> orderService.updateOrder(1L, USER, request(new OrderItemDTO(1L, 5))))
+        assertThatThrownBy(() -> orderService.updateOrder(3L, USER,
+                request(new OrderItemDTO(1L, 5))))
                 .isInstanceOf(OrderNotFoundException.class);
 
         verifyNoInteractions(productClient);
         verify(orderRepository, never()).save(any());
-        assertThat(existing.getItems().get(0).getQuantity()).isEqualTo(1); // untouched
+        assertThat(existing.getItems().getFirst().getQuantity()).isEqualTo(1); // untouched
     }
 
     // ---------- deleteOrder ----------
 
     @Test
     void deleteOrder_whenOwner_deletesById() {
-        when(orderRepository.findByIdWithItems(1L))
-                .thenReturn(Optional.of(order(1L, USER, item(1, 1, "10.00"))));
+        when(orderRepository.findByIdWithItems(4L))
+                .thenReturn(Optional.of(order(4L, USER,
+                        item(1, 1, "10.00"))));
 
-        orderService.deleteOrder(1L, USER);
+        orderService.deleteOrder(4L, USER);
 
-        verify(orderRepository).deleteById(1L);
+        verify(orderRepository).deleteById(4L);
     }
 
     @Test
     void deleteOrder_whenDifferentUser_throwsAndDoesNotDelete() {
-        when(orderRepository.findByIdWithItems(1L))
-                .thenReturn(Optional.of(order(1L, "bob", item(1, 1, "10.00"))));
+        when(orderRepository.findByIdWithItems(5L))
+                .thenReturn(Optional.of(order(5L, "bob",
+                        item(1, 1, "10.00"))));
 
-        assertThatThrownBy(() -> orderService.deleteOrder(1L, USER))
+        assertThatThrownBy(() -> orderService.deleteOrder(5L, USER))
                 .isInstanceOf(OrderNotFoundException.class);
 
         verify(orderRepository, never()).deleteById(anyLong());
@@ -269,23 +272,25 @@ class OrderServiceTest {
 
     @Test
     void getOrderByIdForUser_whenOwnedByAnotherUser_throwsNotFound() {
-        when(orderRepository.findByIdWithItems(1L))
-                .thenReturn(Optional.of(order(1L, "bob", item(1, 1, "10.00"))));
+        when(orderRepository.findByIdWithItems(6L))
+                .thenReturn(Optional.of(order(6L, "bob",
+                        item(7, 1, "10.00"))));
 
-        assertThatThrownBy(() -> orderService.getOrderByIdForUser(1L, USER))
+        assertThatThrownBy(() -> orderService.getOrderByIdForUser(6L, USER))
                 .isInstanceOf(OrderNotFoundException.class);
     }
 
     @Test
     void getAllOrdersByUsername_returnsOnlyRepositoryResultsMappedToDto() {
         when(orderRepository.findAllOrdersByUsername(USER))
-                .thenReturn(List.of(order(1L, USER, item(1, 3, "2.00"))));
+                .thenReturn(List.of(order(7L, USER,
+                        item(7, 3, "2.00"))));
 
         List<OrderResponseDTO> result = orderService.getAllOrdersByUsername(USER);
 
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).username()).isEqualTo(USER);
-        assertThat(result.get(0).items()).hasSize(1);
+        assertThat(result.getFirst().username()).isEqualTo(USER);
+        assertThat(result.getFirst().items()).hasSize(1);
     }
 
     @Test

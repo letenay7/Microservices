@@ -8,19 +8,20 @@ import org.example.order.entity.OrderItem;
 import org.example.order.exception.CannotModifyOrderException;
 import org.example.order.exception.OrderNotFoundException;
 import org.example.order.service.OrderService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
@@ -34,7 +35,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -47,7 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class OrderControllerTests {
 
     private static final String HEADER = "X-Auth-Username";
-    private static final String USER = "alice";
+    private static String USER;
 
     @Autowired
     private MockMvc mockMvc;
@@ -57,6 +57,16 @@ class OrderControllerTests {
 
     @MockitoBean
     private OrderService orderService;
+
+    private String generateRandomUUID() {
+        return UUID.randomUUID().toString().replace("-", "");
+    }
+
+    @BeforeEach
+    void setUSER() {
+        USER = generateRandomUUID();
+
+    }
 
     // ---------- helpers ----------
 
@@ -68,22 +78,22 @@ class OrderControllerTests {
         return objectMapper.writeValueAsString(o);
     }
 
-    private OrderItem item(long productId, int quantity, String price) {
+    private OrderItem item(long productId, int quantity, BigDecimal price) {
         OrderItem item = new OrderItem();
         item.setProductId(productId);
         item.setQuantity(quantity);
-        item.setPrice(new BigDecimal(price));
+        item.setPrice(price);
         return item;
     }
 
-    private OrderResponseDTO responseDto(long id, String username, String total, OrderItem... items) {
+    private OrderResponseDTO responseDto(long id, String username, BigDecimal total, OrderItem... items) {
         return new OrderResponseDTO(id, username, new ArrayList<>(List.of(items)),
-                new BigDecimal(total), System.currentTimeMillis());
+                total, System.currentTimeMillis());
     }
 
     private Order orderEntity(long id, String username, String total, OrderItem... items) {
         Order order = new Order();
-        ReflectionTestUtils.setField(order, "id", id);
+        order.setId(id);
         order.setUsername(username);
         order.setItems(new ArrayList<>(List.of(items)));
         order.setTotalPrice(new BigDecimal(total));
@@ -99,7 +109,9 @@ class OrderControllerTests {
         void validRequest_returns201AndBody() throws Exception {
             OrderRequestDTO request = requestOf(1L, 2);
             when(orderService.createOrder(eq(request), eq(USER)))
-                    .thenReturn(responseDto(7, USER, "2400.00", item(1, 2, "1200.00")));
+                    .thenReturn(
+                            responseDto(7,  USER, new BigDecimal("2400.00"),
+                            item(1, 2, new BigDecimal("1200.00"))));
 
             mockMvc.perform(post("/api/orders")
                             .header(HEADER, USER)
@@ -175,7 +187,8 @@ class OrderControllerTests {
         void returnsOnlyCallersOrders() throws Exception {
             when(orderService.getAllOrdersByUsername(USER))
                     .thenReturn(
-                            List.of(responseDto(1, USER, "10.00", item(1, 1, "10.00"))));
+                            List.of(responseDto(1, USER, new BigDecimal("10.00"),
+                                    item(1, 1, new BigDecimal("10.00")))));
 
             mockMvc.perform(get("/api/orders").header(HEADER, USER))
                     .andExpect(status().isOk())
@@ -186,7 +199,9 @@ class OrderControllerTests {
         @Test
         void byUsername_matchingHeader_returnsOrders() throws Exception {
             when(orderService.getAllOrdersByUsername(USER))
-                    .thenReturn(List.of(responseDto(1, USER, "10.00", item(1, 1, "10.00"))));
+                    .thenReturn(
+                            List.of(responseDto(1, USER, new BigDecimal( "10.00"),
+                            item(1, 1, new BigDecimal("10.00")))));
 
             mockMvc.perform(get("/api/orders")
                             .param("username", USER)
@@ -222,7 +237,8 @@ class OrderControllerTests {
         @Test
         void existingOrder_returns200() throws Exception {
             when(orderService.getOrderByIdForUser(5L, USER))
-                    .thenReturn(orderEntity(5, USER, "10.00", item(1, 1, "10.00")));
+                    .thenReturn(orderEntity(5, USER, "10.00",
+                            item(1, 1, new BigDecimal("10.00"))));
 
             mockMvc.perform(get("/api/orders/{id}", 5).header(HEADER, USER))
                     .andExpect(status().isOk())
@@ -266,7 +282,8 @@ class OrderControllerTests {
         void validRequest_returns200WithUpdatedOrder() throws Exception {
             OrderRequestDTO request = requestOf(1L, 3);
             when(orderService.updateOrder(eq(5L), eq(USER), eq(request)))
-                    .thenReturn(orderEntity(5, USER, "3600.00", item(1, 3, "1200.00")));
+                    .thenReturn(orderEntity(5, USER, "3600.00",
+                            item(1, 3, new BigDecimal("1200.00"))));
 
             mockMvc.perform(put("/api/orders/{id}", 5)
                             .header(HEADER, USER)

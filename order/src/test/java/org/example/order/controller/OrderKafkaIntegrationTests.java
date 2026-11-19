@@ -29,7 +29,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 import tools.jackson.databind.ObjectMapper;
 
@@ -58,8 +58,8 @@ class OrderKafkaIntegrationTests {
 
     private static final String USER = "kafka-test-user";
 
-    static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>(DockerImageName.parse("postgres:15-alpine"))
+    static final PostgreSQLContainer postgres =
+            new PostgreSQLContainer(DockerImageName.parse("postgres:15-alpine"))
                     .withDatabaseName("order_db")
                     .withUsername("test")
                     .withPassword("test");
