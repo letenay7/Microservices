@@ -3,7 +3,6 @@ package org.example.order.controller;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
-import org.example.order.client.ProductClient;
 import org.example.order.dto.OrderItemDTO;
 import org.example.order.dto.OrderRequestDTO;
 import org.example.order.event.OrderCreatedEvent;
@@ -21,7 +20,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 import tools.jackson.databind.ObjectMapper;
 
@@ -45,8 +44,8 @@ class OrderResilienceIntegrationTests {
     private static final String USER = "resilience-user";
     private static final String CB_NAME = "productService";
 
-    static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>(DockerImageName.parse("postgres:15-alpine"))
+    static final PostgreSQLContainer postgres =
+            new PostgreSQLContainer(DockerImageName.parse("postgres:15-alpine"))
                     .withDatabaseName("order_db")
                     .withUsername("test")
                     .withPassword("test");
@@ -83,9 +82,6 @@ class OrderResilienceIntegrationTests {
     @Autowired
     private CircuitBreakerRegistry circuitBreakerRegistry;
 
-    @Autowired
-    private ProductClient productClient;
-
     // Without this (or @EmbeddedKafka) the producer blocks ~60s trying to reach localhost:9092.
     @MockitoBean
     private KafkaTemplate<String, OrderCreatedEvent> kafkaTemplate;
@@ -105,7 +101,7 @@ class OrderResilienceIntegrationTests {
                         + circuitBreakerRegistry.getAllCircuitBreakers().stream().map(CircuitBreaker::getName).toList()));
     }
 
-    private String orderJson() throws Exception {
+    private String orderJson() {
         return objectMapper.writeValueAsString(
                 new OrderRequestDTO(List.of(new OrderItemDTO(1L, 2))));
     }
