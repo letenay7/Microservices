@@ -3,8 +3,10 @@ package org.example.order.controller;
 import org.example.order.dto.OrderItemDTO;
 import org.example.order.dto.OrderRequestDTO;
 import org.example.order.dto.OrderResponseDTO;
+import org.example.order.dto.OrderStatusUpdateDTO;
 import org.example.order.entity.Order;
 import org.example.order.entity.OrderItem;
+import org.example.order.entity.OrderStatus;
 import org.example.order.exception.CannotModifyOrderException;
 import org.example.order.exception.OrderNotFoundException;
 import org.example.order.service.OrderService;
@@ -33,6 +35,7 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.doThrow;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -88,7 +91,13 @@ class OrderControllerTests {
 
     private OrderResponseDTO responseDto(long id, String username, BigDecimal total, OrderItem... items) {
         return new OrderResponseDTO(id, username, new ArrayList<>(List.of(items)),
-                total, System.currentTimeMillis());
+                total, null, System.currentTimeMillis());
+    }
+
+    private OrderResponseDTO responseDtoWithStatus(long id, String username, BigDecimal total,
+                                                   OrderStatus status, OrderItem... items) {
+        return new OrderResponseDTO(id, username, new ArrayList<>(List.of(items)),
+                total, status, System.currentTimeMillis());
     }
 
     private Order orderEntity(long id, String username, String total, OrderItem... items) {
@@ -324,6 +333,121 @@ class OrderControllerTests {
             mockMvc.perform(put("/api/orders/{id}", 5)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(json(requestOf(1L, 1))))
+                    .andExpect(status().isBadRequest());
+
+            verifyNoInteractions(orderService);
+        }
+    }
+
+    // ---------- GET /api/orders (with status filter) ----------
+
+    @Nested
+    class ListOrdersByStatus {
+
+        @Test
+        void withStatusFilter_returnsFilteredOrders() throws Exception {
+            when(orderService.getOrdersByUsernameAndStatus(eq(USER), eq(OrderStatus.CONFIRMED)))
+                    .thenReturn(List.of(
+                            responseDtoWithStatus(1, USER, new BigDecimal("10.00"), OrderStatus.CONFIRMED,
+                                    item(1, 1, new BigDecimal("10.00")))
+                    ));
+
+            mockMvc.perform(get("/api/orders")
+                            .param("status", "CONFIRMED")
+                            .header(HEADER, USER))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$", hasSize(1)))
+                    .andExpect(jsonPath("$[0].status").value("CONFIRMED"));
+        }
+
+        @Test
+        void withStatusFilter_noMatch_returnsEmptyArray() throws Exception {
+            when(orderService.getOrdersByUsernameAndStatus(eq(USER), eq(OrderStatus.SHIPPED)))
+                    .thenReturn(List.of());
+
+            mockMvc.perform(get("/api/orders")
+                            .param("status", "SHIPPED")
+                            .header(HEADER, USER))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$", hasSize(0)));
+        }
+
+        @Test
+        void withInvalidStatus_returns400() throws Exception {
+            mockMvc.perform(get("/api/orders")
+                            .param("status", "INVALID_STATUS")
+                            .header(HEADER, USER))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    // ---------- PATCH /api/orders/{id}/status ----------
+
+    @Nested
+    class UpdateStatus {
+
+        @Test
+        void validTransition_returns200WithUpdatedStatus() throws Exception {
+            OrderStatusUpdateDTO request = new OrderStatusUpdateDTO(OrderStatus.CONFIRMED);
+            when(orderService.updateStatus(eq(5L), eq(USER), eq(OrderStatus.CONFIRMED)))
+                    .thenReturn(responseDtoWithStatus(5, USER, new BigDecimal("10.00"),
+                            OrderStatus.CONFIRMED, item(1, 1, new BigDecimal("10.00"))));
+
+            mockMvc.perform(patch("/api/orders/{id}/status", 5)
+                            .header(HEADER, USER)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.orderId").value(5))
+                    .andExpect(jsonPath("$.status").value("CONFIRMED"));
+
+            verify(orderService).updateStatus(5L, USER, OrderStatus.CONFIRMED);
+        }
+
+        @Test
+        void invalidTransition_returns409() throws Exception {
+            OrderStatusUpdateDTO request = new OrderStatusUpdateDTO(OrderStatus.SHIPPED);
+            when(orderService.updateStatus(eq(5L), eq(USER), eq(OrderStatus.SHIPPED)))
+                    .thenThrow(new CannotModifyOrderException("Cannot transition order from PENDING to SHIPPED"));
+
+            mockMvc.perform(patch("/api/orders/{id}/status", 5)
+                            .header(HEADER, USER)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json(request)))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.message").value("Cannot transition order from PENDING to SHIPPED"));
+        }
+
+        @Test
+        void unknownOrder_returns404() throws Exception {
+            OrderStatusUpdateDTO request = new OrderStatusUpdateDTO(OrderStatus.CONFIRMED);
+            when(orderService.updateStatus(eq(99L), eq(USER), eq(OrderStatus.CONFIRMED)))
+                    .thenThrow(new OrderNotFoundException("Order not found"));
+
+            mockMvc.perform(patch("/api/orders/{id}/status", 99)
+                            .header(HEADER, USER)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json(request)))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void missingAuthHeader_returns400() throws Exception {
+            OrderStatusUpdateDTO request = new OrderStatusUpdateDTO(OrderStatus.CONFIRMED);
+
+            mockMvc.perform(patch("/api/orders/{id}/status", 5)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(json(request)))
+                    .andExpect(status().isBadRequest());
+
+            verifyNoInteractions(orderService);
+        }
+
+        @Test
+        void missingBody_returns400() throws Exception {
+            mockMvc.perform(patch("/api/orders/{id}/status", 5)
+                            .header(HEADER, USER)
+                            .contentType(MediaType.APPLICATION_JSON))
                     .andExpect(status().isBadRequest());
 
             verifyNoInteractions(orderService);

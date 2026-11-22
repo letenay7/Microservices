@@ -2,7 +2,9 @@ package org.example.order.controller;
 
 import org.example.order.dto.OrderRequestDTO;
 import org.example.order.dto.OrderResponseDTO;
+import org.example.order.dto.OrderStatusUpdateDTO;
 import org.example.order.entity.Order;
+import org.example.order.entity.OrderStatus;
 import org.example.order.exception.CannotModifyOrderException;
 import org.example.order.service.OrderService;
 import org.springframework.http.HttpStatus;
@@ -10,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -33,10 +36,14 @@ public class OrderController {
     @GetMapping
     public ResponseEntity<List<OrderResponseDTO>> getOrders(
             @RequestHeader("X-Auth-Username") String username,
-            @RequestParam(value = "username", required = false) String paramUsername) {
+            @RequestParam(value = "username", required = false) String paramUsername,
+            @RequestParam(value = "status", required = false) OrderStatus status) {
 
         if (paramUsername != null && !paramUsername.equals(username)) {
             throw new CannotModifyOrderException("Invalid username");
+        }
+        if (status != null) {
+            return ResponseEntity.ok(orderService.getOrdersByUsernameAndStatus(username, status));
         }
         return ResponseEntity.ok(orderService.getAllOrdersByUsername(username));
     }
@@ -48,7 +55,7 @@ public class OrderController {
 
         Order order = orderService.getOrderByIdForUser(id, username);
         return ResponseEntity.ok(new OrderResponseDTO(order.getId(), order.getUsername(),
-                order.getItems(), order.getTotalPrice(), System.currentTimeMillis()));
+                order.getItems(), order.getTotalPrice(), order.getStatus(), System.currentTimeMillis()));
     }
 
 
@@ -59,7 +66,7 @@ public class OrderController {
         Order updatedOrder = orderService.updateOrder(id, username, request);
         OrderResponseDTO response = new OrderResponseDTO(updatedOrder.getId(),
                 updatedOrder.getUsername(), updatedOrder.getItems(),
-                updatedOrder.getTotalPrice(), System.currentTimeMillis());
+                updatedOrder.getTotalPrice(), updatedOrder.getStatus(), System.currentTimeMillis());
         return ResponseEntity.ok(response);
     }
 
@@ -68,5 +75,14 @@ public class OrderController {
                                              @RequestHeader("X-Auth-Username") String username) {
         orderService.deleteOrder(id, username);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<OrderResponseDTO> updateStatus(
+            @PathVariable Long id,
+            @RequestHeader("X-Auth-Username") String username,
+            @RequestBody OrderStatusUpdateDTO request) {
+        OrderResponseDTO updated = orderService.updateStatus(id, username, request.status());
+        return ResponseEntity.ok(updated);
     }
 }

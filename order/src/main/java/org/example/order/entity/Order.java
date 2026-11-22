@@ -6,6 +6,9 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.util.List;
 
+import static jakarta.persistence.EnumType.STRING;
+import static jakarta.persistence.GenerationType.IDENTITY;
+
 @Entity
 @Table(name = "orders")
 @Getter
@@ -26,4 +29,8 @@ public class Order {
 
     @Column(nullable = false)
     private BigDecimal totalPrice;
+
+    @Enumerated(STRING)
+    @Column(nullable = false)
+    private OrderStatus status;
 }

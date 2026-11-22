@@ -4,6 +4,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.example.order.entity.Order;
 import org.example.order.entity.OrderItem;
+import org.example.order.entity.OrderStatus;
 import org.example.order.support.PostgresTestConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +49,7 @@ class RepositoryPersistenceTests {
                 .username(username)
                 .items(items)
                 .totalPrice(BigDecimal.ZERO)
+                .status(OrderStatus.PENDING)
                 .build();
 
         order.setTotalPrice(
@@ -231,5 +233,104 @@ class RepositoryPersistenceTests {
 
         assertThrows(DataIntegrityViolationException.class,
                 () -> orderRepository.saveAndFlush(order));
+    }
+
+    // ---------- status field persistence ----------
+
+    @Test
+    void statusFieldShouldBeStoredAndRetrieved() {
+        Order saved = saveOrder("alice", List.of(item(1L, 1, new BigDecimal("10.00"))));
+        assertThat(saved.getStatus()).isEqualTo(OrderStatus.PENDING);
+
+        Order found = orderRepository.findById(saved.getId()).orElseThrow();
+        assertThat(found.getStatus()).isEqualTo(OrderStatus.PENDING);
+    }
+
+    @Test
+    void nullStatusShouldBeRejectedByDatabase() {
+        Order order = Order.builder()
+                .username("alice")
+                .items(List.of())
+                .totalPrice(new BigDecimal("100.00"))
+                .status(null)
+                .build();
+
+        assertThrows(DataIntegrityViolationException.class,
+                () -> orderRepository.saveAndFlush(order));
+    }
+
+    // ---------- findAllOrdersByUsernameAndStatus ----------
+
+    @Test
+    void findAllOrdersByUsernameAndStatusShouldReturnMatchingOrders() {
+        Order order1 = Order.builder()
+                .username("alice")
+                .items(List.of(item(1L, 1, new BigDecimal("10.00"))))
+                .totalPrice(new BigDecimal("10.00"))
+                .status(OrderStatus.CONFIRMED)
+                .build();
+        Order order2 = Order.builder()
+                .username("alice")
+                .items(List.of(item(2L, 1, new BigDecimal("20.00"))))
+                .totalPrice(new BigDecimal("20.00"))
+                .status(OrderStatus.CONFIRMED)
+                .build();
+        Order order3 = Order.builder()
+                .username("alice")
+                .items(List.of(item(3L, 1, new BigDecimal("30.00"))))
+                .totalPrice(new BigDecimal("30.00"))
+                .status(OrderStatus.PENDING)
+                .build();
+
+        orderRepository.saveAndFlush(order1);
+        orderRepository.saveAndFlush(order2);
+        orderRepository.saveAndFlush(order3);
+        entityManager.clear();
+
+        List<Order> confirmed = orderRepository.findAllOrdersByUsernameAndStatus("alice", OrderStatus.CONFIRMED);
+
+        assertThat(confirmed).hasSize(2);
+        assertThat(confirmed).extracting(Order::getStatus).containsOnly(OrderStatus.CONFIRMED);
+    }
+
+    @Test
+    void findAllOrdersByUsernameAndStatusShouldReturnEmptyForNoMatch() {
+        Order order = Order.builder()
+                .username("alice")
+                .items(List.of(item(1L, 1, new BigDecimal("10.00"))))
+                .totalPrice(new BigDecimal("10.00"))
+                .status(OrderStatus.PENDING)
+                .build();
+        orderRepository.saveAndFlush(order);
+        entityManager.clear();
+
+        List<Order> found = orderRepository.findAllOrdersByUsernameAndStatus("alice", OrderStatus.SHIPPED);
+
+        assertThat(found).isEmpty();
+    }
+
+    @Test
+    void findAllOrdersByUsernameAndStatusShouldIgnoreOtherUsers() {
+        Order order1 = Order.builder()
+                .username("alice")
+                .items(List.of(item(1L, 1, new BigDecimal("10.00"))))
+                .totalPrice(new BigDecimal("10.00"))
+                .status(OrderStatus.CONFIRMED)
+                .build();
+        Order order2 = Order.builder()
+                .username("bob")
+                .items(List.of(item(2L, 1, new BigDecimal("20.00"))))
+                .totalPrice(new BigDecimal("20.00"))
+                .status(OrderStatus.CONFIRMED)
+                .build();
+
+        orderRepository.saveAndFlush(order1);
+        orderRepository.saveAndFlush(order2);
+        entityManager.clear();
+
+        List<Order> found = orderRepository.findAllOrdersByUsernameAndStatus("alice", OrderStatus.CONFIRMED);
+
+        assertThat(found).hasSize(1);
+        assertThat(found.get(0).getUsername()).isEqualTo("alice");
     }
 }

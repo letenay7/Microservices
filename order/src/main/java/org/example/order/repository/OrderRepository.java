@@ -1,6 +1,7 @@
 package org.example.order.repository;
 
 import org.example.order.entity.Order;
+import org.example.order.entity.OrderStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,4 +16,6 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     Optional<Order> findByUsername(String username);
 
     List<Order> findAllOrdersByUsername(String username);
+
+    List<Order> findAllOrdersByUsernameAndStatus(String username, OrderStatus status);
 }

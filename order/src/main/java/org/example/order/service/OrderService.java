@@ -4,7 +4,9 @@ import org.example.order.client.ProductClient;
 import org.example.order.dto.*;
 import org.example.order.entity.Order;
 import org.example.order.entity.OrderItem;
+import org.example.order.entity.OrderStatus;
 import org.example.order.event.OrderCreatedEvent;
+import org.example.order.exception.CannotModifyOrderException;
 import org.example.order.exception.OrderNotFoundException;
 import org.example.order.messaging.OrderEventProducer;
 import org.example.order.repository.OrderRepository;
@@ -73,6 +75,7 @@ public class OrderService {
         List<OrderItem> orderItems = processed.orderItems();
         order.setItems(orderItems);
         order.setTotalPrice(processed.totalPrice());
+        order.setStatus(OrderStatus.PENDING);
         Order savedOrder = orderRepository.save(order);
 
         OrderCreatedEvent event = new OrderCreatedEvent(
@@ -92,6 +95,7 @@ public class OrderService {
                 order.getUsername(),
                 orderItems,
                 order.getTotalPrice(),
+                order.getStatus(),
                 System.currentTimeMillis()
         );
     }
@@ -119,6 +123,7 @@ public class OrderService {
                         order.getUsername(),
                         new ArrayList<>(order.getItems()),
                         order.getTotalPrice(),
+                        order.getStatus(),
                         System.currentTimeMillis()))
                 .toList();
 
@@ -132,7 +137,35 @@ public class OrderService {
                         order.getUsername(),
                         new ArrayList<>(order.getItems()),
                         order.getTotalPrice(),
+                        order.getStatus(),
                         System.currentTimeMillis()))
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderResponseDTO> getOrdersByUsernameAndStatus(String username, OrderStatus status) {
+        return orderRepository.findAllOrdersByUsernameAndStatus(username, status)
+                .stream()
+                .map(order -> new OrderResponseDTO(
+                        order.getId(),
+                        order.getUsername(),
+                        new ArrayList<>(order.getItems()),
+                        order.getTotalPrice(),
+                        order.getStatus(),
+                        System.currentTimeMillis()))
+                .toList();
+    }
+
+    @Transactional
+    public OrderResponseDTO updateStatus(Long orderId, String username, OrderStatus newStatus) {
+        Order order = getOrderByIdForUser(orderId, username);
+        OrderStatus currentStatus = order.getStatus();
+        if (!currentStatus.canTransitionTo(newStatus)) {
+            throw new CannotModifyOrderException(
+                    "Cannot transition order from " + currentStatus + " to " + newStatus);
+        }
+        order.setStatus(newStatus);
+        Order updatedOrder = orderRepository.save(order);
+        return mapToResponse(updatedOrder, updatedOrder.getItems());
     }
 }
