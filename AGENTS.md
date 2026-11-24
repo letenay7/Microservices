@@ -2,7 +2,8 @@
 
 # Project Guidelines
 - Agents are allowed to suggest new features, but they will be implemented by humans.
-- Agents will write unit tests for new features
+- When agents suggest new features, they should provide a step-by-step guide on how to implement it not just generate code 
+- Agents will write unit tests for new features.
 - Always ask before running commands.
 - Do not assume information you do not have. Always ask before implementing a change.
 - Agents are supposed to help the developer accomplish tasks more efficiently
@@ -14,6 +15,7 @@
 - Write unit tests for all new business logic
 - Run tests before submitting changes
 - Do not bypass or weaken failing tests
+- When a task is finished always run whole test suite (mvnw clean test)
 ## Microservices Architecture
   - The application is divided into 4 modules:
        - product (`product`): Handles product catalog CRUD operations, backed by **PostgreSQL** for persistent storage and **Redis** for high-performance caching.

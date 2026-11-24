@@ -10,6 +10,7 @@ import org.example.order.entity.Order;
 import org.example.order.entity.OrderItem;
 import org.example.order.entity.OrderStatus;
 import org.example.order.event.OrderCreatedEvent;
+import org.example.order.event.OrderStatusChangedEvent;
 import org.example.order.exception.CannotModifyOrderException;
 import org.example.order.exception.OrderNotFoundException;
 import org.example.order.messaging.OrderEventProducer;
@@ -330,6 +331,12 @@ class OrderServiceTests {
         assertThat(response.status()).isEqualTo(OrderStatus.CONFIRMED);
         assertThat(response.orderId()).isEqualTo(1L);
         verify(orderRepository).save(existing);
+
+        ArgumentCaptor<OrderStatusChangedEvent> eventCaptor =
+                ArgumentCaptor.forClass(OrderStatusChangedEvent.class);
+        verify(orderEventProducer).sendOrderStatusChangedEvent(eventCaptor.capture());
+        assertThat(eventCaptor.getValue()).isEqualTo(new OrderStatusChangedEvent(
+                1L, USER, OrderStatus.PENDING, OrderStatus.CONFIRMED));
     }
 
     @Test
@@ -343,6 +350,7 @@ class OrderServiceTests {
                 .hasMessageContaining("SHIPPED");
 
         verify(orderRepository, never()).save(any());
+        verify(orderEventProducer, never()).sendOrderStatusChangedEvent(any());
     }
 
     @Test

@@ -6,6 +6,7 @@ import org.example.order.entity.Order;
 import org.example.order.entity.OrderItem;
 import org.example.order.entity.OrderStatus;
 import org.example.order.event.OrderCreatedEvent;
+import org.example.order.event.OrderStatusChangedEvent;
 import org.example.order.exception.CannotModifyOrderException;
 import org.example.order.exception.OrderNotFoundException;
 import org.example.order.messaging.OrderEventProducer;
@@ -100,6 +101,7 @@ public class OrderService {
         );
     }
 
+    @Transactional
     public Order updateOrder(Long orderId, String username, OrderRequestDTO orderRequestDTO) {
         Order toUpdate = getOrderByIdForUser(orderId, username);
         OrderProcessDTO updatedOrder = processOrderRequest(orderRequestDTO, username);
@@ -110,6 +112,7 @@ public class OrderService {
         return orderRepository.save(toUpdate);
     }
 
+    @Transactional
     public void deleteOrder(Long orderId, String username) {
         Order toDelete = getOrderByIdForUser(orderId, username);
         orderRepository.deleteById(toDelete.getId());
@@ -166,6 +169,12 @@ public class OrderService {
         }
         order.setStatus(newStatus);
         Order updatedOrder = orderRepository.save(order);
+        OrderStatusChangedEvent event = new OrderStatusChangedEvent(
+                order.getId(),
+                order.getUsername(),
+                currentStatus,
+                newStatus);
+        orderEventProducer.sendOrderStatusChangedEvent(event);
         return mapToResponse(updatedOrder, updatedOrder.getItems());
     }
 }

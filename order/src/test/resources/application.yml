@@ -8,6 +8,14 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: order-service-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JacksonJsonDeserializer
+      properties:
+        spring.json.trusted.packages: org.example.order.event
+        spring.json.value.default.type: org.example.order.event.OrderStatusChangedEvent
+        spring.json.use.type.headers: false
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
