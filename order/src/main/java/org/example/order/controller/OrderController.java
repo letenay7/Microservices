@@ -1,5 +1,6 @@
 package org.example.order.controller;
 
+import jakarta.validation.Valid;
 import org.example.order.dto.OrderRequestDTO;
 import org.example.order.dto.OrderResponseDTO;
 import org.example.order.dto.OrderStatusUpdateDTO;
@@ -12,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -26,7 +26,7 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<OrderResponseDTO> createOrder(
-            @RequestBody OrderRequestDTO request,
+            @RequestBody @Valid OrderRequestDTO request,
             @RequestHeader("X-Auth-Username") String username) {
 
         OrderResponseDTO createdOrder = orderService.createOrder(request, username);
@@ -62,7 +62,7 @@ public class OrderController {
     @PutMapping("/{id}")
     public ResponseEntity<OrderResponseDTO> updateOrder(@PathVariable Long id,
                                              @RequestHeader("X-Auth-Username") String username,
-                                             @RequestBody OrderRequestDTO request) {
+                                             @RequestBody @Valid OrderRequestDTO request) {
         Order updatedOrder = orderService.updateOrder(id, username, request);
         OrderResponseDTO response = new OrderResponseDTO(updatedOrder.getId(),
                 updatedOrder.getUsername(), updatedOrder.getItems(),
@@ -81,7 +81,7 @@ public class OrderController {
     public ResponseEntity<OrderResponseDTO> updateStatus(
             @PathVariable Long id,
             @RequestHeader("X-Auth-Username") String username,
-            @RequestBody OrderStatusUpdateDTO request) {
+            @RequestBody @Valid OrderStatusUpdateDTO request) {
         OrderResponseDTO updated = orderService.updateStatus(id, username, request.status());
         return ResponseEntity.ok(updated);
     }

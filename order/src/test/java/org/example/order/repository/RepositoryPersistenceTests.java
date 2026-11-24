@@ -2,6 +2,7 @@ package org.example.order.repository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.validation.ConstraintViolationException;
 import org.example.order.entity.Order;
 import org.example.order.entity.OrderItem;
 import org.example.order.entity.OrderStatus;
@@ -11,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
-import org.springframework.dao.DataIntegrityViolationException;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -173,65 +173,70 @@ class RepositoryPersistenceTests {
         assertThat(found).isEmpty();
     }
 
-    // ---------- DB-level nullable constraints ----------
+    // ---------- Bean Validation and DB-level nullable constraints ----------
 
     @Test
-    void nullUsernameShouldBeRejectedByDatabase() {
+    void nullUsernameShouldBeRejectedByBeanValidation() {
         Order order = Order.builder()
                 .username(null)
                 .items(List.of())
                 .totalPrice(new BigDecimal("100.00"))
+                .status(OrderStatus.PENDING)
                 .build();
 
-        assertThrows(DataIntegrityViolationException.class,
+        assertThrows(ConstraintViolationException.class,
                 () -> orderRepository.saveAndFlush(order));
     }
 
     @Test
-    void nullTotalPriceShouldBeRejectedByDatabase() {
+    void nullTotalPriceShouldBeRejectedByBeanValidation() {
         Order order = Order.builder()
                 .username("alice")
                 .items(List.of())
                 .totalPrice(null)
+                .status(OrderStatus.PENDING)
                 .build();
 
-        assertThrows(DataIntegrityViolationException.class,
+        assertThrows(ConstraintViolationException.class,
                 () -> orderRepository.saveAndFlush(order));
     }
 
     @Test
-    void orderItemWithNullProductIdShouldBeRejectedByDatabase() {
+    void orderItemWithNullProductIdShouldBeRejectedByBeanValidation() {
         Order order = Order.builder()
                 .username("alice")
                 .items(List.of(OrderItem.builder().productId(null).quantity(1).price(new BigDecimal("10.00")).build()))
                 .totalPrice(new BigDecimal("10.00"))
+                .status(OrderStatus.PENDING)
                 .build();
 
-        assertThrows(DataIntegrityViolationException.class,
+        assertThrows(ConstraintViolationException.class,
                 () -> orderRepository.saveAndFlush(order));
     }
 
     @Test
-    void orderItemWithNullQuantityShouldBeRejectedByDatabase() {
+    void orderItemWithNullQuantityShouldBeRejectedByBeanValidation() {
         Order order = Order.builder()
                 .username("alice")
                 .items(List.of(OrderItem.builder().productId(1L).quantity(null).price(new BigDecimal("10.00")).build()))
                 .totalPrice(new BigDecimal("10.00"))
+                .status(OrderStatus.PENDING)
                 .build();
 
-        assertThrows(DataIntegrityViolationException.class,
+        assertThrows(ConstraintViolationException.class,
                 () -> orderRepository.saveAndFlush(order));
     }
 
     @Test
-    void orderItemWithNullPriceShouldBeRejectedByDatabase() {
+    void orderItemWithNullPriceShouldBeRejectedByBeanValidation() {
         Order order = Order.builder()
                 .username("alice")
                 .items(List.of(OrderItem.builder().productId(1L).quantity(1).price(null).build()))
                 .totalPrice(new BigDecimal("10.00"))
+                .status(OrderStatus.PENDING)
                 .build();
 
-        assertThrows(DataIntegrityViolationException.class,
+        assertThrows(ConstraintViolationException.class,
                 () -> orderRepository.saveAndFlush(order));
     }
 
@@ -247,7 +252,7 @@ class RepositoryPersistenceTests {
     }
 
     @Test
-    void nullStatusShouldBeRejectedByDatabase() {
+    void nullStatusShouldBeRejectedByBeanValidation() {
         Order order = Order.builder()
                 .username("alice")
                 .items(List.of())
@@ -255,7 +260,7 @@ class RepositoryPersistenceTests {
                 .status(null)
                 .build();
 
-        assertThrows(DataIntegrityViolationException.class,
+        assertThrows(ConstraintViolationException.class,
                 () -> orderRepository.saveAndFlush(order));
     }
 
@@ -331,6 +336,6 @@ class RepositoryPersistenceTests {
         List<Order> found = orderRepository.findAllOrdersByUsernameAndStatus("alice", OrderStatus.CONFIRMED);
 
         assertThat(found).hasSize(1);
-        assertThat(found.get(0).getUsername()).isEqualTo("alice");
+        assertThat(found.getFirst().getUsername()).isEqualTo("alice");
     }
 }
