@@ -24,6 +24,7 @@ class OrderItemEntityValidationTests {
     private OrderItem validOrderItem() {
         return OrderItem.builder()
                 .productId(1L)
+                .productName("product")
                 .quantity(1)
                 .price(new BigDecimal("10.00"))
                 .build();
@@ -47,6 +48,14 @@ class OrderItemEntityValidationTests {
         orderItem.setProductId(null);
 
         assertThat(violatedFields(orderItem)).containsExactly("productId");
+    }
+
+    @Test
+    void nullProductNameShouldBeRejected() {
+        OrderItem orderItem = validOrderItem();
+        orderItem.setProductName(null);
+
+        assertThat(violatedFields(orderItem)).containsExactly("productName");
     }
 
     @Test

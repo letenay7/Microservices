@@ -55,6 +55,7 @@ public class OrderService {
 
             OrderItem orderItem = new OrderItem();
             orderItem.setProductId(product.productId());
+            orderItem.setProductName(product.name());
             Integer quantity = item.quantity();
             orderItem.setQuantity(quantity);
             BigDecimal productPrice = product.price();

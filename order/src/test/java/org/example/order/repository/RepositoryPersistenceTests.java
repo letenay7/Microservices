@@ -39,6 +39,7 @@ class RepositoryPersistenceTests {
     private OrderItem item(Long productId, int quantity, BigDecimal price) {
         return OrderItem.builder()
                 .productId(productId)
+                .productName("product-" + productId)
                 .quantity(quantity)
                 .price(price)
                 .build();
@@ -91,6 +92,9 @@ class RepositoryPersistenceTests {
         assertThat(reloaded.getItems())
                 .extracting(OrderItem::getProductId)
                 .containsExactlyInAnyOrder(1L, 2L);
+        assertThat(reloaded.getItems())
+                .extracting(OrderItem::getProductName)
+                .containsExactlyInAnyOrder("product-1", "product-2");
     }
 
     // ---------- orphan removal ----------
@@ -205,7 +209,22 @@ class RepositoryPersistenceTests {
     void orderItemWithNullProductIdShouldBeRejectedByBeanValidation() {
         Order order = Order.builder()
                 .username("alice")
-                .items(List.of(OrderItem.builder().productId(null).quantity(1).price(new BigDecimal("10.00")).build()))
+                .items(List.of(OrderItem.builder().productId(null).productName("product")
+                        .quantity(1).price(new BigDecimal("10.00")).build()))
+                .totalPrice(new BigDecimal("10.00"))
+                .status(OrderStatus.PENDING)
+                .build();
+
+        assertThrows(ConstraintViolationException.class,
+                () -> orderRepository.saveAndFlush(order));
+    }
+
+    @Test
+    void orderItemWithNullProductNameShouldBeRejectedByBeanValidation() {
+        Order order = Order.builder()
+                .username("alice")
+                .items(List.of(OrderItem.builder().productId(1L).productName(null)
+                        .quantity(1).price(new BigDecimal("10.00")).build()))
                 .totalPrice(new BigDecimal("10.00"))
                 .status(OrderStatus.PENDING)
                 .build();
@@ -218,7 +237,8 @@ class RepositoryPersistenceTests {
     void orderItemWithNullQuantityShouldBeRejectedByBeanValidation() {
         Order order = Order.builder()
                 .username("alice")
-                .items(List.of(OrderItem.builder().productId(1L).quantity(null).price(new BigDecimal("10.00")).build()))
+                .items(List.of(OrderItem.builder().productId(1L).productName("product")
+                        .quantity(null).price(new BigDecimal("10.00")).build()))
                 .totalPrice(new BigDecimal("10.00"))
                 .status(OrderStatus.PENDING)
                 .build();
@@ -231,7 +251,8 @@ class RepositoryPersistenceTests {
     void orderItemWithNullPriceShouldBeRejectedByBeanValidation() {
         Order order = Order.builder()
                 .username("alice")
-                .items(List.of(OrderItem.builder().productId(1L).quantity(1).price(null).build()))
+                .items(List.of(OrderItem.builder().productId(1L).productName("product")
+                        .quantity(1).price(null).build()))
                 .totalPrice(new BigDecimal("10.00"))
                 .status(OrderStatus.PENDING)
                 .build();

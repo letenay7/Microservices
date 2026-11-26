@@ -24,6 +24,10 @@ public class OrderItem {
 
     @NotNull
     @Column(nullable = false)
+    private String productName;
+
+    @NotNull
+    @Column(nullable = false)
     private Integer quantity;
 
     @NotNull
