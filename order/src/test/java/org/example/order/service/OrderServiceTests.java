@@ -166,6 +166,8 @@ class OrderServiceTests {
         ArgumentCaptor<Order> saved = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(saved.capture());
         assertThat(saved.getValue().getUsername()).isEqualTo(USER);
+        assertThat(saved.getValue().getCreatedAt()).isNotNull();
+        assertThat(saved.getValue().getUpdatedAt()).isEqualTo(saved.getValue().getCreatedAt());
         assertThat(saved.getValue().getTotalPrice()).isEqualByComparingTo("2400.00");
         assertThat(saved.getValue().getItems()).hasSize(1);
 

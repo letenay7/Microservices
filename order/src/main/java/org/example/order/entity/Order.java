@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 
 import static jakarta.persistence.EnumType.STRING;
@@ -39,4 +40,12 @@ public class Order {
     @Column(nullable = false)
     @NotNull
     private OrderStatus status;
+
+    @Column(nullable = false)
+    @NotNull
+    private Instant createdAt;
+
+    @Column(nullable = false)
+    @NotNull
+    private Instant updatedAt;
 }

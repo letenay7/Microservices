@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -78,6 +79,9 @@ public class OrderService {
         order.setItems(orderItems);
         order.setTotalPrice(processed.totalPrice());
         order.setStatus(OrderStatus.PENDING);
+        Instant now = Instant.now();
+        order.setCreatedAt(now);
+        order.setUpdatedAt(now);
         Order savedOrder = orderRepository.save(order);
 
         OrderCreatedEvent event = new OrderCreatedEvent(
@@ -110,6 +114,7 @@ public class OrderService {
         toUpdate.getItems().addAll(updatedOrder.orderItems());
         toUpdate.setTotalPrice(updatedOrder.totalPrice());
         toUpdate.setUsername(username);
+        toUpdate.setUpdatedAt(Instant.now());
         return orderRepository.save(toUpdate);
     }
 
@@ -169,6 +174,7 @@ public class OrderService {
                     "Cannot transition order from " + currentStatus + " to " + newStatus);
         }
         order.setStatus(newStatus);
+        order.setUpdatedAt(Instant.now());
         Order updatedOrder = orderRepository.save(order);
         OrderStatusChangedEvent event = new OrderStatusChangedEvent(
                 order.getId(),

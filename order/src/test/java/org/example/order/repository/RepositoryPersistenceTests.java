@@ -14,6 +14,7 @@ import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabas
 import org.springframework.context.annotation.Import;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,6 +28,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(PostgresTestConfig.class)
 class RepositoryPersistenceTests {
+
+    private static final Instant CREATED_AT = Instant.parse("2026-11-25T12:00:00Z");
+    private static final Instant UPDATED_AT = Instant.parse("2026-11-26T12:00:00Z");
 
     @Autowired
     private OrderRepository orderRepository;
@@ -51,6 +55,8 @@ class RepositoryPersistenceTests {
                 .items(items)
                 .totalPrice(BigDecimal.ZERO)
                 .status(OrderStatus.PENDING)
+                .createdAt(CREATED_AT)
+                .updatedAt(UPDATED_AT)
                 .build();
 
         order.setTotalPrice(
@@ -75,6 +81,8 @@ class RepositoryPersistenceTests {
         assertThat(found).isPresent();
         assertThat(found.get().getUsername()).isEqualTo("alice");
         assertThat(found.get().getTotalPrice()).isEqualByComparingTo("2400.00");
+        assertThat(found.get().getCreatedAt()).isEqualTo(CREATED_AT);
+        assertThat(found.get().getUpdatedAt()).isEqualTo(UPDATED_AT);
     }
 
     // ---------- cascade persistence ----------
@@ -186,6 +194,8 @@ class RepositoryPersistenceTests {
                 .items(List.of())
                 .totalPrice(new BigDecimal("100.00"))
                 .status(OrderStatus.PENDING)
+                .createdAt(CREATED_AT)
+                .updatedAt(UPDATED_AT)
                 .build();
 
         assertThrows(ConstraintViolationException.class,
@@ -199,6 +209,8 @@ class RepositoryPersistenceTests {
                 .items(List.of())
                 .totalPrice(null)
                 .status(OrderStatus.PENDING)
+                .createdAt(CREATED_AT)
+                .updatedAt(UPDATED_AT)
                 .build();
 
         assertThrows(ConstraintViolationException.class,
@@ -213,6 +225,8 @@ class RepositoryPersistenceTests {
                         .quantity(1).price(new BigDecimal("10.00")).build()))
                 .totalPrice(new BigDecimal("10.00"))
                 .status(OrderStatus.PENDING)
+                .createdAt(CREATED_AT)
+                .updatedAt(UPDATED_AT)
                 .build();
 
         assertThrows(ConstraintViolationException.class,
@@ -227,6 +241,8 @@ class RepositoryPersistenceTests {
                         .quantity(1).price(new BigDecimal("10.00")).build()))
                 .totalPrice(new BigDecimal("10.00"))
                 .status(OrderStatus.PENDING)
+                .createdAt(CREATED_AT)
+                .updatedAt(UPDATED_AT)
                 .build();
 
         assertThrows(ConstraintViolationException.class,
@@ -241,6 +257,8 @@ class RepositoryPersistenceTests {
                         .quantity(null).price(new BigDecimal("10.00")).build()))
                 .totalPrice(new BigDecimal("10.00"))
                 .status(OrderStatus.PENDING)
+                .createdAt(CREATED_AT)
+                .updatedAt(UPDATED_AT)
                 .build();
 
         assertThrows(ConstraintViolationException.class,
@@ -255,6 +273,8 @@ class RepositoryPersistenceTests {
                         .quantity(1).price(null).build()))
                 .totalPrice(new BigDecimal("10.00"))
                 .status(OrderStatus.PENDING)
+                .createdAt(CREATED_AT)
+                .updatedAt(UPDATED_AT)
                 .build();
 
         assertThrows(ConstraintViolationException.class,
@@ -279,6 +299,8 @@ class RepositoryPersistenceTests {
                 .items(List.of())
                 .totalPrice(new BigDecimal("100.00"))
                 .status(null)
+                .createdAt(CREATED_AT)
+                .updatedAt(UPDATED_AT)
                 .build();
 
         assertThrows(ConstraintViolationException.class,
@@ -294,18 +316,24 @@ class RepositoryPersistenceTests {
                 .items(List.of(item(1L, 1, new BigDecimal("10.00"))))
                 .totalPrice(new BigDecimal("10.00"))
                 .status(OrderStatus.CONFIRMED)
+                .createdAt(CREATED_AT)
+                .updatedAt(UPDATED_AT)
                 .build();
         Order order2 = Order.builder()
                 .username("alice")
                 .items(List.of(item(2L, 1, new BigDecimal("20.00"))))
                 .totalPrice(new BigDecimal("20.00"))
                 .status(OrderStatus.CONFIRMED)
+                .createdAt(CREATED_AT)
+                .updatedAt(UPDATED_AT)
                 .build();
         Order order3 = Order.builder()
                 .username("alice")
                 .items(List.of(item(3L, 1, new BigDecimal("30.00"))))
                 .totalPrice(new BigDecimal("30.00"))
                 .status(OrderStatus.PENDING)
+                .createdAt(CREATED_AT)
+                .updatedAt(UPDATED_AT)
                 .build();
 
         orderRepository.saveAndFlush(order1);
@@ -326,6 +354,8 @@ class RepositoryPersistenceTests {
                 .items(List.of(item(1L, 1, new BigDecimal("10.00"))))
                 .totalPrice(new BigDecimal("10.00"))
                 .status(OrderStatus.PENDING)
+                .createdAt(CREATED_AT)
+                .updatedAt(UPDATED_AT)
                 .build();
         orderRepository.saveAndFlush(order);
         entityManager.clear();
@@ -342,12 +372,16 @@ class RepositoryPersistenceTests {
                 .items(List.of(item(1L, 1, new BigDecimal("10.00"))))
                 .totalPrice(new BigDecimal("10.00"))
                 .status(OrderStatus.CONFIRMED)
+                .createdAt(CREATED_AT)
+                .updatedAt(UPDATED_AT)
                 .build();
         Order order2 = Order.builder()
                 .username("bob")
                 .items(List.of(item(2L, 1, new BigDecimal("20.00"))))
                 .totalPrice(new BigDecimal("20.00"))
                 .status(OrderStatus.CONFIRMED)
+                .createdAt(CREATED_AT)
+                .updatedAt(UPDATED_AT)
                 .build();
 
         orderRepository.saveAndFlush(order1);
