@@ -85,4 +85,11 @@ public class OrderController {
         OrderResponseDTO updated = orderService.updateStatus(id, username, request.status());
         return ResponseEntity.ok(updated);
     }
+
+    @GetMapping("/{id}/history")
+    public ResponseEntity<List<OrderStatus>> getOrderHistory(@PathVariable Long id,
+                                                             @RequestHeader("X-Auth-Username") String username) {
+        List<OrderStatus> orderStatusHistory = orderService.getOrderHistory(id, username);
+        return ResponseEntity.ok(orderStatusHistory);
+    }
 }

@@ -216,7 +216,7 @@ class OrderServiceTests {
     @Test
     void updateOrder_replacesItemsAndTotal() {
         Order existing = order(2L, USER, item(2, 1, "1200.00"));
-        when(orderRepository.findByIdWithItems(2L)).thenReturn(Optional.of(existing));
+        when(orderRepository.findByIdAndUsername(2L, USER)).thenReturn(Optional.of(existing));
         when(productClient.getProductById(2L, USER)).thenReturn(product(2, "1200.00"));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -231,7 +231,7 @@ class OrderServiceTests {
 
     @Test
     void updateOrder_whenOrderMissing_throwsNotFound() {
-        when(orderRepository.findByIdWithItems(99L)).thenReturn(Optional.empty());
+        when(orderRepository.findByIdAndUsername(99L, USER)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.updateOrder(99L, USER, request(new OrderItemDTO(1L, 1))))
                 .isInstanceOf(OrderNotFoundException.class);
@@ -241,8 +241,7 @@ class OrderServiceTests {
 
     @Test
     void updateOrder_whenDifferentUser_throwsAndDoesNothing() {
-        Order existing = order(3L, "bob", item(1, 1, "10.00"));
-        when(orderRepository.findByIdWithItems(3L)).thenReturn(Optional.of(existing));
+        when(orderRepository.findByIdAndUsername(3L, USER)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.updateOrder(3L, USER,
                 request(new OrderItemDTO(1L, 5))))
@@ -250,14 +249,13 @@ class OrderServiceTests {
 
         verifyNoInteractions(productClient);
         verify(orderRepository, never()).save(any());
-        assertThat(existing.getItems().getFirst().getQuantity()).isEqualTo(1); // untouched
     }
 
     // ---------- deleteOrder ----------
 
     @Test
     void deleteOrder_whenOwner_deletesById() {
-        when(orderRepository.findByIdWithItems(4L))
+        when(orderRepository.findByIdAndUsername(4L, USER))
                 .thenReturn(Optional.of(order(4L, USER,
                         item(1, 1, "10.00"))));
 
@@ -268,9 +266,7 @@ class OrderServiceTests {
 
     @Test
     void deleteOrder_whenDifferentUser_throwsAndDoesNotDelete() {
-        when(orderRepository.findByIdWithItems(5L))
-                .thenReturn(Optional.of(order(5L, "bob",
-                        item(1, 1, "10.00"))));
+        when(orderRepository.findByIdAndUsername(5L, USER)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.deleteOrder(5L, USER))
                 .isInstanceOf(OrderNotFoundException.class);
@@ -280,7 +276,7 @@ class OrderServiceTests {
 
     @Test
     void deleteOrder_whenMissing_throwsNotFound() {
-        when(orderRepository.findByIdWithItems(99L)).thenReturn(Optional.empty());
+        when(orderRepository.findByIdAndUsername(99L, USER)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.deleteOrder(99L, USER))
                 .isInstanceOf(OrderNotFoundException.class);
@@ -291,10 +287,8 @@ class OrderServiceTests {
     // ---------- queries (assumes the DTO-returning versions from option B) ----------
 
     @Test
-    void getOrderByIdForUser_whenOwnedByAnotherUser_throwsNotFound() {
-        when(orderRepository.findByIdWithItems(6L))
-                .thenReturn(Optional.of(order(6L, "bob",
-                        item(7, 1, "10.00"))));
+    void getOrderByIdForUser_whenNoMatchingUsername_throwsNotFound() {
+        when(orderRepository.findByIdAndUsername(6L, USER)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.getOrderByIdForUser(6L, USER))
                 .isInstanceOf(OrderNotFoundException.class);
@@ -325,7 +319,8 @@ class OrderServiceTests {
     @Test
     void updateStatus_validTransition_updatesAndReturnsResponse() {
         Order existing = orderWithStatus(1L, USER, OrderStatus.PENDING, item(1, 1, "10.00"));
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(existing));
+        existing.addStatusToHistory(OrderStatus.PENDING);
+        when(orderRepository.findByIdAndUsername(1L, USER)).thenReturn(Optional.of(existing));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
         OrderResponseDTO response = orderService.updateStatus(1L, USER, OrderStatus.CONFIRMED);
@@ -344,7 +339,7 @@ class OrderServiceTests {
     @Test
     void updateStatus_invalidTransition_throwsConflict() {
         Order existing = orderWithStatus(1L, USER, OrderStatus.PENDING, item(1, 1, "10.00"));
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(existing));
+        when(orderRepository.findByIdAndUsername(1L, USER)).thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> orderService.updateStatus(1L, USER, OrderStatus.SHIPPED))
                 .isInstanceOf(CannotModifyOrderException.class)
@@ -358,7 +353,7 @@ class OrderServiceTests {
     @Test
     void updateStatus_terminalStateDelivered_throwsConflict() {
         Order existing = orderWithStatus(1L, USER, OrderStatus.DELIVERED, item(1, 1, "10.00"));
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(existing));
+        when(orderRepository.findByIdAndUsername(1L, USER)).thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> orderService.updateStatus(1L, USER, OrderStatus.CANCELLED))
                 .isInstanceOf(CannotModifyOrderException.class)
@@ -368,7 +363,7 @@ class OrderServiceTests {
     @Test
     void updateStatus_terminalStateCancelled_throwsConflict() {
         Order existing = orderWithStatus(1L, USER, OrderStatus.CANCELLED, item(1, 1, "10.00"));
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(existing));
+        when(orderRepository.findByIdAndUsername(1L, USER)).thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> orderService.updateStatus(1L, USER, OrderStatus.PENDING))
                 .isInstanceOf(CannotModifyOrderException.class)
@@ -377,8 +372,7 @@ class OrderServiceTests {
 
     @Test
     void updateStatus_differentUser_throwsNotFound() {
-        Order existing = orderWithStatus(1L, "bob", OrderStatus.PENDING, item(1, 1, "10.00"));
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(existing));
+        when(orderRepository.findByIdAndUsername(1L, USER)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.updateStatus(1L, USER, OrderStatus.CONFIRMED))
                 .isInstanceOf(OrderNotFoundException.class);
@@ -388,7 +382,7 @@ class OrderServiceTests {
 
     @Test
     void updateStatus_missingOrder_throwsNotFound() {
-        when(orderRepository.findByIdWithItems(99L)).thenReturn(Optional.empty());
+        when(orderRepository.findByIdAndUsername(99L, USER)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderService.updateStatus(99L, USER, OrderStatus.CONFIRMED))
                 .isInstanceOf(OrderNotFoundException.class);
@@ -398,7 +392,8 @@ class OrderServiceTests {
     void updateStatus_fullLifecycle_pendingToDelivered() {
         // PENDING → CONFIRMED
         Order order1 = orderWithStatus(1L, USER, OrderStatus.PENDING, item(1, 1, "10.00"));
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(order1));
+        order1.addStatusToHistory(OrderStatus.PENDING);
+        when(orderRepository.findByIdAndUsername(1L, USER)).thenReturn(Optional.of(order1));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
 
         OrderResponseDTO r1 = orderService.updateStatus(1L, USER, OrderStatus.CONFIRMED);
@@ -406,17 +401,19 @@ class OrderServiceTests {
 
         // CONFIRMED → SHIPPED
         order1.setStatus(OrderStatus.CONFIRMED);
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(order1));
+        when(orderRepository.findByIdAndUsername(1L, USER)).thenReturn(Optional.of(order1));
 
         OrderResponseDTO r2 = orderService.updateStatus(1L, USER, OrderStatus.SHIPPED);
         assertThat(r2.status()).isEqualTo(OrderStatus.SHIPPED);
 
         // SHIPPED → DELIVERED
         order1.setStatus(OrderStatus.SHIPPED);
-        when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(order1));
+        when(orderRepository.findByIdAndUsername(1L, USER)).thenReturn(Optional.of(order1));
 
         OrderResponseDTO r3 = orderService.updateStatus(1L, USER, OrderStatus.DELIVERED);
         assertThat(r3.status()).isEqualTo(OrderStatus.DELIVERED);
+        assertThat(order1.getOrderHistory()).containsExactly(
+                OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.SHIPPED, OrderStatus.DELIVERED);
     }
 
     // ---------- getOrdersByUsernameAndStatus ----------
@@ -462,5 +459,16 @@ class OrderServiceTests {
         ArgumentCaptor<Order> saved = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(saved.capture());
         assertThat(saved.getValue().getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(saved.getValue().getOrderHistory()).containsExactly(OrderStatus.PENDING);
+    }
+
+    @Test
+    void getOrderHistory_returnsHistoryForOrderOwner() {
+        Order existing = orderWithStatus(1L, USER, OrderStatus.CONFIRMED, item(1, 1, "10.00"));
+        existing.setOrderHistory(new ArrayList<>(List.of(OrderStatus.PENDING, OrderStatus.CONFIRMED)));
+        when(orderRepository.findByIdAndUsername(1L, USER)).thenReturn(Optional.of(existing));
+
+        assertThat(orderService.getOrderHistory(1L, USER))
+                .containsExactly(OrderStatus.PENDING, OrderStatus.CONFIRMED);
     }
 }

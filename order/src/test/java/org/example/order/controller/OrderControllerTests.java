@@ -454,6 +454,26 @@ class OrderControllerTests {
         }
     }
 
+    // ---------- GET /api/orders/{id}/history ----------
+
+    @Nested
+    class GetOrderHistory {
+
+        @Test
+        void returnsHistoryForOrderOwner() throws Exception {
+            when(orderService.getOrderHistory(5L, USER))
+                    .thenReturn(List.of(OrderStatus.PENDING, OrderStatus.CONFIRMED));
+
+            mockMvc.perform(get("/api/orders/{id}/history", 5).header(HEADER, USER))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$", hasSize(2)))
+                    .andExpect(jsonPath("$[0]").value("PENDING"))
+                    .andExpect(jsonPath("$[1]").value("CONFIRMED"));
+
+            verify(orderService).getOrderHistory(5L, USER);
+        }
+    }
+
     // ---------- DELETE /api/orders/{id} ----------
 
     @Nested

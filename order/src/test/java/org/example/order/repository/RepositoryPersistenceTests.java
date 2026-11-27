@@ -85,6 +85,28 @@ class RepositoryPersistenceTests {
         assertThat(found.get().getUpdatedAt()).isEqualTo(UPDATED_AT);
     }
 
+    @Test
+    void orderStatusHistoryShouldRoundTripInChronologicalOrder() {
+        Order order = Order.builder()
+                .username("alice")
+                .items(List.of())
+                .totalPrice(BigDecimal.ZERO)
+                .status(OrderStatus.PENDING)
+                .createdAt(CREATED_AT)
+                .updatedAt(UPDATED_AT)
+                .build();
+        order.addStatusToHistory(OrderStatus.PENDING);
+        order.addStatusToHistory(OrderStatus.CONFIRMED);
+        order.addStatusToHistory(OrderStatus.SHIPPED);
+
+        Order saved = orderRepository.saveAndFlush(order);
+        entityManager.clear();
+
+        Order reloaded = orderRepository.findById(saved.getId()).orElseThrow();
+        assertThat(reloaded.getOrderHistory())
+                .containsExactly(OrderStatus.PENDING, OrderStatus.CONFIRMED, OrderStatus.SHIPPED);
+    }
+
     // ---------- cascade persistence ----------
 
     @Test

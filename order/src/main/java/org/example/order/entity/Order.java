@@ -7,6 +7,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 import static jakarta.persistence.EnumType.STRING;
@@ -48,4 +49,13 @@ public class Order {
     @Column(nullable = false)
     @NotNull
     private Instant updatedAt;
+
+    @Column(nullable = false)
+    @NotNull
+    @Builder.Default
+    private List<OrderStatus> orderHistory = new ArrayList<>();
+
+    public void addStatusToHistory(OrderStatus orderStatus) {
+        this.orderHistory.add(orderStatus);
+    }
 }

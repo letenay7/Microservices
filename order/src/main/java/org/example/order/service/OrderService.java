@@ -32,20 +32,15 @@ public class OrderService {
         this.orderEventProducer = orderEventProducer;
     }
 
-    public Order getOrderById(Long orderId)  {
+    public Order getOrderById(Long orderId) {
         return orderRepository.findByIdWithItems(orderId)
                 .orElseThrow(() -> new OrderNotFoundException("Order not found"));
 
     }
 
-
-
     public Order getOrderByIdForUser(Long id, String username) {
-        Order order = getOrderById(id);
-        if (!order.getUsername().equals(username)) {
-            throw new OrderNotFoundException("Order not found");
-        }
-        return order;
+        return orderRepository.findByIdAndUsername(id, username)
+                .orElseThrow(() -> new OrderNotFoundException("Order not found"));
     }
 
     public OrderProcessDTO processOrderRequest(OrderRequestDTO orderRequestDTO, String username) {
@@ -79,6 +74,7 @@ public class OrderService {
         order.setItems(orderItems);
         order.setTotalPrice(processed.totalPrice());
         order.setStatus(OrderStatus.PENDING);
+        order.addStatusToHistory(order.getStatus());
         Instant now = Instant.now();
         order.setCreatedAt(now);
         order.setUpdatedAt(now);
@@ -115,6 +111,8 @@ public class OrderService {
         toUpdate.setTotalPrice(updatedOrder.totalPrice());
         toUpdate.setUsername(username);
         toUpdate.setUpdatedAt(Instant.now());
+        toUpdate.setStatus(OrderStatus.PENDING);
+        toUpdate.addStatusToHistory(toUpdate.getStatus());
         return orderRepository.save(toUpdate);
     }
 
@@ -175,6 +173,7 @@ public class OrderService {
         }
         order.setStatus(newStatus);
         order.setUpdatedAt(Instant.now());
+        order.addStatusToHistory(order.getStatus());
         Order updatedOrder = orderRepository.save(order);
         OrderStatusChangedEvent event = new OrderStatusChangedEvent(
                 order.getId(),
@@ -183,5 +182,11 @@ public class OrderService {
                 newStatus);
         orderEventProducer.sendOrderStatusChangedEvent(event);
         return mapToResponse(updatedOrder, updatedOrder.getItems());
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderStatus> getOrderHistory(Long id, String username) {
+        Order order = getOrderByIdForUser(id, username);
+        return order.getOrderHistory();
     }
 }
