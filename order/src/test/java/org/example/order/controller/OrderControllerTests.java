@@ -94,10 +94,10 @@ class OrderControllerTests {
                 total, null, System.currentTimeMillis());
     }
 
-    private OrderResponseDTO responseDtoWithStatus(long id, String username, BigDecimal total,
-                                                   OrderStatus status, OrderItem... items) {
+    private OrderResponseDTO confirmedResponseDto(long id, String username, BigDecimal total,
+                                                  OrderItem... items) {
         return new OrderResponseDTO(id, username, new ArrayList<>(List.of(items)),
-                total, status, System.currentTimeMillis());
+                total, OrderStatus.CONFIRMED, System.currentTimeMillis());
     }
 
     private Order orderEntity(long id, String username, String total, OrderItem... items) {
@@ -197,27 +197,38 @@ class OrderControllerTests {
             when(orderService.getAllOrdersByUsername(USER))
                     .thenReturn(
                             List.of(responseDto(1, USER, new BigDecimal("10.00"),
-                                    item(1, 1, new BigDecimal("10.00")))));
+                                            item(1, 1, new BigDecimal("10.00"))),
+                                    responseDto(2, USER, new BigDecimal("21.00"),
+                                            item(4, 3, new BigDecimal("7.00")))));
 
             mockMvc.perform(get("/api/orders").header(HEADER, USER))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$", hasSize(1)))
-                    .andExpect(jsonPath("$[0].username").value(USER));
+                    .andExpect(jsonPath("$", hasSize(2)))
+                    .andExpect(jsonPath("$[0].username").value(USER))
+                    .andExpect(jsonPath("$[0].orderId").value(1))
+                    .andExpect(jsonPath("$[1].orderId").value(2))
+                    .andExpect(jsonPath("$[1].totalPrice").value(21.00))
+                    .andExpect(jsonPath("$[1].items[0].productId").value(4))
+                    .andExpect(jsonPath("$[1].items[0].quantity").value(3));
         }
 
         @Test
         void byUsername_matchingHeader_returnsOrders() throws Exception {
             when(orderService.getAllOrdersByUsername(USER))
                     .thenReturn(
-                            List.of(responseDto(1, USER, new BigDecimal( "10.00"),
-                            item(1, 1, new BigDecimal("10.00")))));
+                            List.of(responseDto(3, USER, new BigDecimal("14.00"),
+                                    item(8, 4, new BigDecimal("3.50")))));
 
             mockMvc.perform(get("/api/orders")
                             .param("username", USER)
                             .header(HEADER, USER))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$", hasSize(1)))
-                    .andExpect(jsonPath("$[0].username").value(USER));
+                    .andExpect(jsonPath("$[0].username").value(USER))
+                    .andExpect(jsonPath("$[0].orderId").value(3))
+                    .andExpect(jsonPath("$[0].totalPrice").value(14.00))
+                    .andExpect(jsonPath("$[0].items[0].productId").value(8))
+                    .andExpect(jsonPath("$[0].items[0].quantity").value(4));
         }
 
         @Test
@@ -246,13 +257,16 @@ class OrderControllerTests {
         @Test
         void existingOrder_returns200() throws Exception {
             when(orderService.getOrderByIdForUser(5L, USER))
-                    .thenReturn(orderEntity(5, USER, "10.00",
-                            item(1, 1, new BigDecimal("10.00"))));
+                    .thenReturn(orderEntity(5, USER, "21.00",
+                            item(2, 3, new BigDecimal("7.00"))));
 
             mockMvc.perform(get("/api/orders/{id}", 5).header(HEADER, USER))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.orderId").value(5))
-                    .andExpect(jsonPath("$.username").value(USER));
+                    .andExpect(jsonPath("$.username").value(USER))
+                    .andExpect(jsonPath("$.totalPrice").value(21.00))
+                    .andExpect(jsonPath("$.items[0].productId").value(2))
+                    .andExpect(jsonPath("$.items[0].quantity").value(3));
 
             verify(orderService).getOrderByIdForUser(5L, USER);
         }
@@ -289,18 +303,19 @@ class OrderControllerTests {
 
         @Test
         void validRequest_returns200WithUpdatedOrder() throws Exception {
-            OrderRequestDTO request = requestOf(1L, 3);
-            when(orderService.updateOrder(eq(5L), eq(USER), eq(request)))
-                    .thenReturn(orderEntity(5, USER, "3600.00",
-                            item(1, 3, new BigDecimal("1200.00"))));
+            OrderRequestDTO request = requestOf(6L, 3);
+            when(orderService.updateOrder(eq(3L), eq(USER), eq(request)))
+                    .thenReturn(orderEntity(3, USER, "3600.00",
+                            item(6, 3, new BigDecimal("1200.00"))));
 
-            mockMvc.perform(put("/api/orders/{id}", 5)
+            mockMvc.perform(put("/api/orders/{id}", 3)
                             .header(HEADER, USER)
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(json(request)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.orderId").value(5))
+                    .andExpect(jsonPath("$.orderId").value(3))
                     .andExpect(jsonPath("$.totalPrice").value(3600.00))
+                    .andExpect(jsonPath("$.items[0].productId").value(6))
                     .andExpect(jsonPath("$.items[0].quantity").value(3));
         }
 
@@ -348,8 +363,8 @@ class OrderControllerTests {
         void withStatusFilter_returnsFilteredOrders() throws Exception {
             when(orderService.getOrdersByUsernameAndStatus(eq(USER), eq(OrderStatus.CONFIRMED)))
                     .thenReturn(List.of(
-                            responseDtoWithStatus(1, USER, new BigDecimal("10.00"), OrderStatus.CONFIRMED,
-                                    item(1, 1, new BigDecimal("10.00")))
+                            confirmedResponseDto(8, USER, new BigDecimal("30.00"),
+                                    item(3, 4, new BigDecimal("7.50")))
                     ));
 
             mockMvc.perform(get("/api/orders")
@@ -357,6 +372,7 @@ class OrderControllerTests {
                             .header(HEADER, USER))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$", hasSize(1)))
+                    .andExpect(jsonPath("$[0].orderId").value(8))
                     .andExpect(jsonPath("$[0].status").value("CONFIRMED"));
         }
 
@@ -390,8 +406,8 @@ class OrderControllerTests {
         void validTransition_returns200WithUpdatedStatus() throws Exception {
             OrderStatusUpdateDTO request = new OrderStatusUpdateDTO(OrderStatus.CONFIRMED);
             when(orderService.updateStatus(eq(5L), eq(USER), eq(OrderStatus.CONFIRMED)))
-                    .thenReturn(responseDtoWithStatus(5, USER, new BigDecimal("10.00"),
-                            OrderStatus.CONFIRMED, item(1, 1, new BigDecimal("10.00"))));
+                    .thenReturn(confirmedResponseDto(5, USER, new BigDecimal("10.00"),
+                            item(9, 2, new BigDecimal("5.00"))));
 
             mockMvc.perform(patch("/api/orders/{id}/status", 5)
                             .header(HEADER, USER)
@@ -399,7 +415,9 @@ class OrderControllerTests {
                             .content(json(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.orderId").value(5))
-                    .andExpect(jsonPath("$.status").value("CONFIRMED"));
+                    .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                    .andExpect(jsonPath("$.items[0].productId").value(9))
+                    .andExpect(jsonPath("$.items[0].quantity").value(2));
 
             verify(orderService).updateStatus(5L, USER, OrderStatus.CONFIRMED);
         }

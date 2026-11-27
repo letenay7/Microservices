@@ -72,10 +72,10 @@ class OrderServiceTests {
         return item;
     }
 
-    private static Order order(Long id , String username, OrderItem... items) {
+    private static Order order(Long id, OrderItem... items) {
         Order order = new Order();
         ReflectionTestUtils.setField(order, "id", id); // avoids depending on a setId()
-        order.setUsername(username);
+        order.setUsername(OrderServiceTests.USER);
         order.setItems(new ArrayList<>(List.of(items)));
         BigDecimal total = BigDecimal.ZERO;
         for (OrderItem i : items) {
@@ -86,10 +86,10 @@ class OrderServiceTests {
         return order;
     }
 
-    private static Order orderWithStatus(Long id, String username, OrderStatus status, OrderItem... items) {
+    private static Order orderWithStatus(Long id, OrderStatus status, OrderItem... items) {
         Order order = new Order();
         ReflectionTestUtils.setField(order, "id", id);
-        order.setUsername(username);
+        order.setUsername(OrderServiceTests.USER);
         order.setItems(new ArrayList<>(List.of(items)));
         BigDecimal total = BigDecimal.ZERO;
         for (OrderItem i : items) {
@@ -197,7 +197,7 @@ class OrderServiceTests {
 
     @Test
     void getOrderById_whenFound_returnsOrder() {
-        Order existing = order(1L, USER, item(1, 1, "10.00"));
+        Order existing = order(1L, item(1, 1, "10.00"));
         when(orderRepository.findByIdWithItems(1L)).thenReturn(Optional.of(existing));
 
         assertThat(orderService.getOrderById(1L)).isSameAs(existing);
@@ -215,7 +215,7 @@ class OrderServiceTests {
 
     @Test
     void updateOrder_replacesItemsAndTotal() {
-        Order existing = order(2L, USER, item(2, 1, "1200.00"));
+        Order existing = order(2L, item(2, 1, "1200.00"));
         when(orderRepository.findByIdAndUsername(2L, USER)).thenReturn(Optional.of(existing));
         when(productClient.getProductById(2L, USER)).thenReturn(product(2, "1200.00"));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -256,7 +256,7 @@ class OrderServiceTests {
     @Test
     void deleteOrder_whenOwner_deletesById() {
         when(orderRepository.findByIdAndUsername(4L, USER))
-                .thenReturn(Optional.of(order(4L, USER,
+                .thenReturn(Optional.of(order(4L,
                         item(1, 1, "10.00"))));
 
         orderService.deleteOrder(4L, USER);
@@ -297,7 +297,7 @@ class OrderServiceTests {
     @Test
     void getAllOrdersByUsername_returnsOnlyRepositoryResultsMappedToDto() {
         when(orderRepository.findAllOrdersByUsername(USER))
-                .thenReturn(List.of(order(7L, USER,
+                .thenReturn(List.of(order(7L,
                         item(7, 3, "2.00"))));
 
         List<OrderResponseDTO> result = orderService.getAllOrdersByUsername(USER);
@@ -318,7 +318,7 @@ class OrderServiceTests {
 
     @Test
     void updateStatus_validTransition_updatesAndReturnsResponse() {
-        Order existing = orderWithStatus(1L, USER, OrderStatus.PENDING, item(1, 1, "10.00"));
+        Order existing = orderWithStatus(1L, OrderStatus.PENDING, item(1, 1, "10.00"));
         existing.addStatusToHistory(OrderStatus.PENDING);
         when(orderRepository.findByIdAndUsername(1L, USER)).thenReturn(Optional.of(existing));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -338,7 +338,7 @@ class OrderServiceTests {
 
     @Test
     void updateStatus_invalidTransition_throwsConflict() {
-        Order existing = orderWithStatus(1L, USER, OrderStatus.PENDING, item(1, 1, "10.00"));
+        Order existing = orderWithStatus(1L, OrderStatus.PENDING, item(1, 1, "10.00"));
         when(orderRepository.findByIdAndUsername(1L, USER)).thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> orderService.updateStatus(1L, USER, OrderStatus.SHIPPED))
@@ -352,7 +352,7 @@ class OrderServiceTests {
 
     @Test
     void updateStatus_terminalStateDelivered_throwsConflict() {
-        Order existing = orderWithStatus(1L, USER, OrderStatus.DELIVERED, item(1, 1, "10.00"));
+        Order existing = orderWithStatus(1L, OrderStatus.DELIVERED, item(1, 1, "10.00"));
         when(orderRepository.findByIdAndUsername(1L, USER)).thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> orderService.updateStatus(1L, USER, OrderStatus.CANCELLED))
@@ -362,7 +362,7 @@ class OrderServiceTests {
 
     @Test
     void updateStatus_terminalStateCancelled_throwsConflict() {
-        Order existing = orderWithStatus(1L, USER, OrderStatus.CANCELLED, item(1, 1, "10.00"));
+        Order existing = orderWithStatus(1L, OrderStatus.CANCELLED, item(1, 1, "10.00"));
         when(orderRepository.findByIdAndUsername(1L, USER)).thenReturn(Optional.of(existing));
 
         assertThatThrownBy(() -> orderService.updateStatus(1L, USER, OrderStatus.PENDING))
@@ -391,7 +391,7 @@ class OrderServiceTests {
     @Test
     void updateStatus_fullLifecycle_pendingToDelivered() {
         // PENDING → CONFIRMED
-        Order order1 = orderWithStatus(1L, USER, OrderStatus.PENDING, item(1, 1, "10.00"));
+        Order order1 = orderWithStatus(1L, OrderStatus.PENDING, item(1, 1, "10.00"));
         order1.addStatusToHistory(OrderStatus.PENDING);
         when(orderRepository.findByIdAndUsername(1L, USER)).thenReturn(Optional.of(order1));
         when(orderRepository.save(any(Order.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -422,8 +422,8 @@ class OrderServiceTests {
     void getOrdersByUsernameAndStatus_returnsMatchingOrders() {
         when(orderRepository.findAllOrdersByUsernameAndStatus(USER, OrderStatus.CONFIRMED))
                 .thenReturn(List.of(
-                        orderWithStatus(1L, USER, OrderStatus.CONFIRMED, item(1, 1, "10.00")),
-                        orderWithStatus(2L, USER, OrderStatus.CONFIRMED, item(2, 1, "20.00"))
+                        orderWithStatus(1L, OrderStatus.CONFIRMED, item(1, 1, "10.00")),
+                        orderWithStatus(2L, OrderStatus.CONFIRMED, item(2, 1, "20.00"))
                 ));
 
         List<OrderResponseDTO> result = orderService.getOrdersByUsernameAndStatus(USER, OrderStatus.CONFIRMED);
@@ -464,7 +464,7 @@ class OrderServiceTests {
 
     @Test
     void getOrderHistory_returnsHistoryForOrderOwner() {
-        Order existing = orderWithStatus(1L, USER, OrderStatus.CONFIRMED, item(1, 1, "10.00"));
+        Order existing = orderWithStatus(1L, OrderStatus.CONFIRMED, item(1, 1, "10.00"));
         existing.setOrderHistory(new ArrayList<>(List.of(OrderStatus.PENDING, OrderStatus.CONFIRMED)));
         when(orderRepository.findByIdAndUsername(1L, USER)).thenReturn(Optional.of(existing));
 
