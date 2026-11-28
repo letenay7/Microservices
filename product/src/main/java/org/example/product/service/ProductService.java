@@ -11,7 +11,6 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -22,8 +21,7 @@ public class ProductService {
 
     @Cacheable(value = "products", key = "#id")
     public Product findById(Long id) {
-        Optional<Product> product = productRepository.findById(id);
-        return product.orElseThrow(() ->
+        return productRepository.findById(id).orElseThrow(() ->
                 new ProductServiceException("Product  with id" + id +" not found"));
     }
 
