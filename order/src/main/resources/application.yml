@@ -13,7 +13,17 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-
+    consumer:
+      group-id: order-service-status-change-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: org.example.order.event
+        spring.json.value.default.type: org.example.order.event.OrderStatusChangedEvent
+        spring.json.use.type.headers: false
+    listener:
+      ack-mode: RECORD
+      missing-topics-fatal: false
   jpa:
     open-in-view: false
     hibernate:
@@ -22,10 +32,13 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
 springdotenv:
   filename: ../.env
+
 product-service:
   url: ${PRODUCT_SERVICE_URL:http://localhost:8081}
+
 resilience4j:
   circuitbreaker:
     instances:

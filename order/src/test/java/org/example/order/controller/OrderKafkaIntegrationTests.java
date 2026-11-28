@@ -5,7 +5,11 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.example.order.dto.OrderItemDTO;
 import org.example.order.dto.OrderRequestDTO;
+import org.example.order.entity.OrderStatus;
 import org.example.order.event.OrderCreatedEvent;
+import org.example.order.event.OrderStatusChangedEvent;
+import org.example.order.messaging.OrderEventConsumer;
+import org.example.order.messaging.OrderEventProducer;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -28,8 +32,9 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 import tools.jackson.databind.ObjectMapper;
 
@@ -43,6 +48,8 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -50,16 +57,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // so it does not need to be passed into @DynamicPropertySource (which only accepts a registry).
 @SpringBootTest
 @AutoConfigureMockMvc
-@EmbeddedKafka(partitions = 1, topics = {"order-events"}
-)
+@EmbeddedKafka(partitions = 1, topics = {"order-created-events", "order-status-events"})
 @DirtiesContext
 @ActiveProfiles("test")
 class OrderKafkaIntegrationTests {
 
     private static final String USER = "kafka-test-user";
 
-    static final PostgreSQLContainer<?> postgres =
-            new PostgreSQLContainer<>(DockerImageName.parse("postgres:15-alpine"))
+    static final PostgreSQLContainer postgres =
+            new PostgreSQLContainer(DockerImageName.parse("postgres:15-alpine"))
                     .withDatabaseName("order_db")
                     .withUsername("test")
                     .withPassword("test");
@@ -97,6 +103,12 @@ class OrderKafkaIntegrationTests {
     @Autowired
     private EmbeddedKafkaBroker embeddedKafkaBroker;
 
+    @Autowired
+    private OrderEventProducer orderEventProducer;
+
+    @MockitoSpyBean
+    private OrderEventConsumer orderEventConsumer;
+
     private KafkaMessageListenerContainer<String, OrderCreatedEvent> container;
     private BlockingQueue<ConsumerRecord<String, OrderCreatedEvent>> records;
 
@@ -121,7 +133,8 @@ class OrderKafkaIntegrationTests {
         DefaultKafkaConsumerFactory<String, OrderCreatedEvent> consumerFactory =
                 new DefaultKafkaConsumerFactory<>(consumerProps, new StringDeserializer(), valueDeserializer);
 
-        container = new KafkaMessageListenerContainer<>(consumerFactory, new ContainerProperties("order-events"));
+        container = new KafkaMessageListenerContainer<>(consumerFactory,
+                new ContainerProperties("order-created-events"));
         records = new LinkedBlockingQueue<>();
         container.setupMessageListener((MessageListener<String, OrderCreatedEvent>) records::add);
         container.start();
@@ -147,11 +160,21 @@ class OrderKafkaIntegrationTests {
                 .andExpect(status().isCreated());
 
         ConsumerRecord<String, OrderCreatedEvent> consumed = records.poll(10, TimeUnit.SECONDS);
-        assertThat(consumed).as("event published to order-events").isNotNull();
+        assertThat(consumed).as("event published to order-created-events").isNotNull();
 
         OrderCreatedEvent event = consumed.value();
         // if OrderCreatedEvent is a record, use username() / items() instead of the getters
         assertThat(event.username()).isEqualTo(USER);
         assertThat(event.orderItems()).hasSize(1);
+    }
+
+    @Test
+    void whenOrderStatusChanged_thenConsumerReceivesEvent() {
+        OrderStatusChangedEvent event = new OrderStatusChangedEvent(
+                1L, USER, OrderStatus.PENDING, OrderStatus.CONFIRMED);
+
+        orderEventProducer.sendOrderStatusChangedEvent(event);
+
+        verify(orderEventConsumer, timeout(10_000)).handleOrderStatusChanged(event);
     }
 }
